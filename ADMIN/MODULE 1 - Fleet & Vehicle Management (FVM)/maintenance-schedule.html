@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Maintenance Schedule Approvals · Logistics II</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <main class="pt-20 px-6 max-w-7xl mx-auto">
+    <div class="w-full max-w-6xl mx-auto px-6 py-6">
+      <header class="mb-6 text-center">
+        <h1 class="text-2xl font-semibold">Maintenance Schedule Approvals</h1>
+        <p class="text-gray-600 mt-1">Handles approval of maintenance schedules submitted by users</p>
+      </header>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="p-4 bg-white rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">Pending Requests</p>
+            <p id="pendingCount" class="text-xl font-bold">2</p>
+            <p class="text-xs text-gray-400">Waiting for approval</p>
+          </div>
+          <span class="w-3 h-3 bg-yellow-400 rounded-full"></span>
+        </div>
+        <div class="p-4 bg-white rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">Approved</p>
+            <p id="approvedCount" class="text-xl font-bold">1</p>
+            <p class="text-xs text-gray-400">This month</p>
+          </div>
+          <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+        </div>
+        <div class="p-4 bg-white rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">Rejected</p>
+            <p id="rejectedCount" class="text-xl font-bold">1</p>
+            <p class="text-xs text-gray-400">This month</p>
+          </div>
+          <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-green-700 text-white">
+            <tr>
+              <th class="px-4 py-2 text-left">Vehicle</th>
+              <th class="px-4 py-2 text-left">Type</th>
+              <th class="px-4 py-2 text-left">Request Date</th>
+              <th class="px-4 py-2 text-left">Status</th>
+              <th class="px-4 py-2 text-left">Requested By</th>
+              <th class="px-4 py-2 text-left">Priority</th>
+              <th class="px-4 py-2 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="approvalTable" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+    </div>
+     <div class="flex justify-end">
+        <a href="admin.html"
+         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+</div>
+</main>
+
+  <!--Modal-->
+  <div id="requestModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div class="bg-white w-full max-w-lg rounded-lg shadow-lg p-6 relative">
+      <!--Header-->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">Maintenance Request Details</h2>
+        <button class="closeModal()"></button>
+      </div>
+
+    <!--Status-->
+    <div id="modalStatus" class="flex gap-2 mb-4"></div>
+
+    <!--Request Info-->
+    <div class="mb-4">
+      <p><strong>Request ID:</strong> <span id="modalRequestId"></span></p>
+      <p class="flex items-center gap-1">
+        <strong>Request Date:</strong> 
+       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+          <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clip-rule="evenodd" />
+        </svg>
+        <span id="modalRequestDate"></span>
+    </p>
+    </div>
+
+    <!--Vehicle Info-->
+    <div class="mb-4 border-t pt-3">
+      <h2 class="text-lg font-bold">Vehicle Informartion</h2><br>
+      <p><strong>Vehicle:</strong> <span id="modalVehicle"></span></p>
+      <p><strong>Plate Number:</strong> <span id="modalPlate"></span></p>
+    </div>
+
+    <!--Maintenance Details-->
+    <div class="mb-4 border-t pt-3">
+       <h2 class="text-lg font-bold">Maintenance Details</h2><br>
+      <p class="flex items-center gap-1">
+        <strong>Maintenance Type:</strong>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
+         <path fill-rule="evenodd" d="M12 6.75a5.25 5.25 0 0 1 6.775-5.025.75.75 0 0 1 .313 1.248l-3.32 3.319c.063.475.276.934.641 1.299.365.365.824.578 1.3.64l3.318-3.319a.75.75 0 0 1 1.248.313 5.25 5.25 0 0 1-5.472 6.756c-1.018-.086-1.87.1-2.309.634L7.344 21.3A3.298 3.298 0 1 1 2.7 16.657l8.684-7.151c.533-.44.72-1.291.634-2.309A5.342 5.342 0 0 1 12 6.75ZM4.117 19.125a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Z" clip-rule="evenodd" />
+       </svg>
+      <span id="modalType"></span>
+    </p>
+      <p class="flex items-center gap-1">
+        <strong>Estimated Cost:</strong> 
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+         <path d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 0 1-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004ZM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 0 1-.921.42Z" />
+            <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v.816a3.836 3.836 0 0 0-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 0 1-.921-.421l-.879-.66a.75.75 0 0 0-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 0 0 1.5 0v-.81a4.124 4.124 0 0 0 1.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 0 0-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 0 0 .933-1.175l-.415-.33a3.836 3.836 0 0 0-1.719-.755V6Z" clip-rule="evenodd" />
+          </svg>
+        <span id="modalCost"></span></p>
+      <p class="flex items-center gap-1">
+        <strong>Schedule Date:</strong>
+         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+          <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clip-rule="evenodd" />
+        </svg>
+     <span id="modalSchedule"></span></p>
+      <p><strong>Description:</strong> <span id="modalDescription"></span></p>
+    </div>
+
+    <!--Requested By-->
+    <div class="mb-4 border-t pt-3">
+      <p class="flex items-center gap-1">
+        <strong>Requested By:</strong> 
+         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z" />
+         </svg>  
+      <span id="modalRequestedBy"></span></p>
+    </div>
+
+    <!--Actions Button-->
+    <div class="flex justify-between items-center">
+  <button onclick="closeModal()" 
+    class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">
+    Close
+  </button>
+
+  <!-- Approve + Reject grouped on the right -->
+  <div class="flex gap-2">
+    <button class="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+      Reject
+    </button>
+
+    <button class="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-500">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+      Approve Request
+    </button>
+  </div>
+</div>
+
+  </div>
+</div>
+      
+
+
+  <script>
+
+    // Sample Data
+    const requests = [
+      { id: "REQ-001", vehicle: "ABC-123 Ford Transit", plate: "ABC-123", type: "Fuel", requestDate: "2024-01-15", status: "Pending", requestedBy: "John Driver", priority: "Medium", cost: 1200, schedule: "2024-01-25", description: "Fuel refill request" },
+      { id: "REQ-002", vehicle: "XYZ-789 Mercedes Sprinter", plate: "XYZ-789", type: "Maintenance", requestDate: "2024-01-20", status: "Approved", requestedBy: "Sarah Wilson", priority: "High", cost: 5000, schedule: "2024-01-30", description: "Engine check and diagnostics" },
+      { id: "REQ-003", vehicle: "DEF-456 Volvo FH16", plate: "DEF-456", type: "Fuel", requestDate: "2024-01-10", status: "Rejected", requestedBy: "Mike Johnson", priority: "Low", cost: 800, schedule: "2024-01-18", description: "Fuel expenses" },
+      { id: "REQ-004", vehicle: "Isuzu NPR", plate: "GHI-789", type: "Engine Service", requestDate: "2024-01-12", status: "Pending", requestedBy: "Lisa Chen", priority: "High", cost: 450, schedule: "2024-01-22", description: "Engine diagnostic and service required" }
+    ];
+
+    const approvalTable = document.getElementById("approvalTable");
+
+    function renderTable() {
+      approvalTable.innerHTML = "";
+      requests.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-gray-50";
+        tr.innerHTML = `
+          <td class="px-4 py-2">${r.vehicle}</td>
+          <td class="px-4 py-2">${r.type}</td>
+          <td class="px-4 py-2">${r.requestDate}</td>
+          <td class="px-4 py-2">${statusBadge(r.status)}</td>
+          <td class="px-4 py-2">${r.requestedBy}</td>
+          <td class="px-4 py-2">${r.priority}</td>
+          <td class="px-4 py-2">
+            <div class="flex gap-2">
+              <button 
+                 class="flex items-center gap-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" 
+                  onclick="viewDetails(${idx})">
+            <!-- Eye Icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+               View Details
+                </button>
+            </div>
+          </td>
+        `;
+        approvalTable.appendChild(tr);
+      });
+    }
+
+    function statusBadge(status) {
+      switch (status) {
+        case "Pending": return `<span class="px-2 py-1 rounded bg-yellow-100 text-yellow-800 text-xs">Pending</span>`;
+        case "Approved": return `<span class="px-2 py-1 rounded bg-green-100 text-green-800 text-xs">Approved</span>`;
+        case "Rejected": return `<span class="px-2 py-1 rounded bg-red-100 text-red-800 text-xs">Rejected</span>`;
+        default: return status;
+      }
+    }
+
+    //Modal Functions
+     function viewDetails(idx) {
+      const r = requests[idx];
+      document.getElementById("modalRequestId").innerText=r.id;
+      document.getElementById("modalRequestDate").innerText=r.requestDate;
+      document.getElementById("modalVehicle").innerText=r.vehicle;
+      document.getElementById("modalPlate").innerText=r.plate;
+      document.getElementById("modalCost").innerText=r.cost;
+      document.getElementById("modalType").innerText = r.type;
+      document.getElementById("modalSchedule").innerText=r.schedule;
+      document.getElementById("modalDescription").innerText=r.description;
+      document.getElementById("modalRequestedBy").innerText=r.requestedBy;
+
+            // status + priority tags
+      document.getElementById("modalStatus").innerHTML = `
+        <span class="px-3 py-1 rounded-full text-sm ${
+          r.status === "Pending" ? "bg-yellow-200 text-yellow-800" :
+          r.status === "Approved" ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"
+        }">${r.status}</span>
+        <span class="px-3 py-1 rounded-full text-sm ${
+          r.priority === "High" ? "bg-red-200 text-red-800" :
+          r.priority === "Medium" ? "bg-yellow-200 text-yellow-800" : "bg-gray-200 text-gray-700"
+        }">${r.priority} Priority</span>
+      `;
+
+      document.getElementById("requestModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("requestModal").classList.add("hidden");
+    }
+
+
+    renderTable();
+  </script>
+</body>
+</html>

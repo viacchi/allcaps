@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dispatch & Assignment Dashboard - Logistics II</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <main class="pt-20 px-6 max-w-7xl mx-auto">
+    <div class="w-full max-w-6xl mx-auto px-6 py-6">
+      <header class="mb-6 text-center">
+        <h1 class="text-2xl font-semibold">Dispatch & Assignment Dashboard</h1>
+        <p class="text-gray-600 mt-1">Central control panel for assigning vehicles and drivers </p>
+      </header>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="bg-white shadow rounded p-4 text-center">
+        <h2 class="text-sm text-black-500 font-bold">Total Requests</h2>
+        <p class="text-2xl font-bold">5</p>
+        <span class="text-gray-400 text-xs">Active dispatch requests</span>
+      </div>
+      <div class="bg-white shadow rounded p-4 text-center">
+        <h2 class="text-sm text-black-500 font-bold">Pending Assignments</h2>
+        <p class="text-2xl font-bold">2</p>
+        <span class="text-gray-400 text-xs">Awaiting assignment</span>
+      </div>
+      <div class="bg-white shadow rounded p-4 text-center">
+        <h2 class="text-sm text-black-500 font-bold">Available Vehicles</h2>
+        <p class="text-2xl font-bold">2</p>
+        <span class="text-gray-400 text-xs">Ready for dispatch</span>
+      </div>
+      <div class="bg-white shadow rounded p-4 text-center">
+        <h2 class="text-sm text-black-500 font-bold">Available Drivers</h2>
+        <p class="text-2xl font-bold">1</p>
+        <span class="text-gray-400 text-xs">Ready for assignment</span>
+      </div>
+    </div>
+
+    <!-- Dispatch Table -->
+    <div class="bg-white shadow rounded p-4">
+      <h2 class="text-lg font-semibold mb-3">Dispatch & Assignment Dashboard</h2>
+      <table class="w-full border-collapse">
+        <thead class="bg-gray-100">
+          <tr class="text-left text-sm">
+            <th class="p-2">Request ID</th>
+            <th class="p-2">Requester</th>
+            <th class="p-2">Assigned Vehicle</th>
+            <th class="p-2">Vehicle Type</th>
+            <th class="p-2">Status</th>
+            <th class="p-2">Date Dispatch</th>
+            <th class="p-2">Driver</th>
+            <th class="p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dispatchTable" class="text-sm"></tbody>
+      </table>
+    </div>
+
+    <!-- Available Vehicles & Drivers -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white shadow rounded p-4">
+        <h2 class="text-lg font-semibold mb-3">Available Vehicles</h2>
+        <ul id="vehiclesList" class="space-y-2"></ul>
+      </div>
+      <div class="bg-white shadow rounded p-4">
+        <h2 class="text-lg font-semibold mb-3">Available Drivers</h2>
+        <ul id="driversList" class="space-y-2"></ul>
+      </div>
+    </div>
+  </div>
+
+    <div class="flex justify-center mt-4">
+  <a href="calendar-scheduled.html"
+     class="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+    <!-- Eye/Chart Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 
+               4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+    View Calendar Scheduled Dispatches
+  </a>
+</div>
+      <!-- Exit button -->
+    <div class="flex justify-end mt-4">
+      <a href="admin.html"
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+
+  <!-- Modal -->
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+      <h2 class="text-lg font-bold mb-4">Request Details</h2>
+      <div id="modalContent" class="space-y-2 text-sm"></div>
+      <div class="mt-4 flex justify-end">
+        <button onclick="closeModal()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dispatchRequests = [
+      { id: "DR-001", requester: "John Smith", vehicle: "ABC-123", type: "Van", status: "Pending", date: "Jan 15, 2024", driver: "Mike Johnson" },
+      { id: "DR-002", requester: "Sarah Wilson", vehicle: "Not assigned", type: "Truck", status: "Assigned", date: "Sep 10, 2023", driver: "Not assigned" },
+      { id: "DR-003", requester: "David Brown", vehicle: "XYZ-789", type: "Car", status: "In-progress", date: "Aug 20, 2023", driver: "Lisa Chen" },
+      { id: "DR-004", requester: "Emily Davis", vehicle: "Not assigned", type: "Van", status: "Assigned", date: "Mar 18, 2023", driver: "Not assigned" },
+    ];
+
+    const vehicles = [
+      { id: "ABC-123", status: "Assigned" },
+      { id: "DEF-456", status: "Available" },
+      { id: "GHI-789", status: "Available" },
+      { id: "JKL-012", status: "Maintenance" },
+    ];
+
+    const drivers = [
+      { name: "Mike Johnson", status: "Assigned" },
+      { name: "Lisa Chen", status: "Available" },
+      { name: "Tom Wilson", status: "Available" },
+      { name: "Anna Rodriguez", status: "Maintenance" },
+    ];
+
+    function getStatusBadge(status) {
+      const colors = {
+        "Maintenance": "bg-red-200 text-red-800",
+        "In-progress": "bg-red-200 text-red-800",
+        "Pending": "bg-yellow-200 text-yellow-800",
+        "Available": "bg-green-200 text-green-800",
+        "Assigned": "bg-blue-200 text-blue-800",
+        "In repair": "bg-red-200 text-red-800",
+        "Unavailable": "bg-gray-200 text-gray-800"
+      };
+      return `<span class="px-2 py-1 rounded text-xs ${colors[status] || "bg-gray-200"}">${status}</span>`;
+    }
+
+    // Render table
+    const tableBody = document.getElementById("dispatchTable");
+    dispatchRequests.forEach((req, index) => {
+      tableBody.innerHTML += `
+        <tr class="border-t">
+          <td class="p-2">${req.id}</td>
+          <td class="p-2">${req.requester}</td>
+          <td class="p-2">${req.vehicle}</td>
+          <td class="p-2">${req.type}</td>
+          <td class="p-2">${getStatusBadge(req.status)}</td>
+          <td class="p-2">${req.date}</td>
+          <td class="p-2">${req.driver}</td>
+          <td class="p-2">
+            <button onclick="viewDetails(${index})" class="text-black-600 hover:text-black-800">
+              <!-- Eye Icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // Render vehicles
+    const vehiclesList = document.getElementById("vehiclesList");
+    vehicles.forEach(v => {
+      vehiclesList.innerHTML += `
+        <li class="flex justify-between items-center p-2 border rounded">
+          <span>${v.id}</span>
+          ${getStatusBadge(v.status)}
+        </li>
+      `;
+    });
+
+    // Render drivers
+    const driversList = document.getElementById("driversList");
+    drivers.forEach(d => {
+      driversList.innerHTML += `
+        <li class="flex justify-between items-center p-2 border rounded">
+          <span>${d.name}</span>
+          ${getStatusBadge(d.status)}
+        </li>
+      `;
+    });
+
+    // Modal Functions
+    function viewDetails(index) {
+      const req = dispatchRequests[index];
+      document.getElementById("modalContent").innerHTML = `
+        <p><strong>Request ID:</strong> ${req.id}</p>
+        <p><strong>Requester:</strong> ${req.requester}</p>
+        <p><strong>Vehicle:</strong> ${req.vehicle}</p>
+        <p><strong>Type:</strong> ${req.type}</p>
+        <p><strong>Status:</strong> ${req.status}</p>
+        <p><strong>Date:</strong> ${req.date}</p>
+        <p><strong>Driver:</strong> ${req.driver}</p>
+      `;
+      document.getElementById("detailsModal").classList.remove("hidden");
+      document.getElementById("detailsModal").classList.add("flex");
+    }
+
+    function closeModal() {
+      document.getElementById("detailsModal").classList.add("hidden");
+      document.getElementById("detailsModal").classList.remove("flex");
+    }
+  </script>
+</body>
+</html>

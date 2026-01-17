@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Compliance & Licensing Records · Logistics II</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <main class="pt-20 px-6 max-w-7xl mx-auto">
+    <!-- Page Header -->
+    <div class="w-full max-w-5xl mx-auto px-6 py-6">
+      <header class="mb-4 text-center"> 
+        <h1 class="text-2xl font-semibold">Compliance & Licensing Records</h1>
+        <p class="text-gray-600 mt-1">Stores and tracks compliance and licensing documents </p>
+      </header>
+    </div>
+  
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="p-4 bg-white rounded-lg shadow">
+        <p class="text-sm text-black-500 font-bold">Total Document</p>
+        <p id="totalExpense" class="text-xl font-bold">5</p>
+      </div>
+      <div class="p-4 bg-white rounded-lg shadow">
+        <p class="text-sm text-black-500 font-bold">Valid</p>
+        <p id="approvedAmount" class="text-xl font-bold">2</p>
+      </div>
+      <div class="p-4 bg-white rounded-lg shadow">
+        <p class="text-sm text-black-500 font-bold">Expiring</p>
+        <p id="approvedAmount" class="text-xl font-bold">1</p>
+      </div>
+      <div class="p-4 bg-white rounded-lg shadow">
+        <p class="text-sm text-black-500 font-bold">Expired</p>
+        <p id="approvedAmount" class="text-xl font-bold">1</p>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-green-700 text-white">
+          <tr>
+            <th class="px-4 py-2 text-left">Vehicle</th>
+            <th class="px-4 py-2 text-left">Document Type</th>
+            <th class="px-4 py-2 text-left">Expiry Date</th>
+            <th class="px-4 py-2 text-left">Status</th>
+            <th class="px-4 py-2 text-left">Upload Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="approvalTable" class="divide-y divide-gray-200"></tbody>
+      </table>
+    </div>
+
+    <!-- Exit button -->
+    <div class="flex justify-end mt-4">
+      <a href="admin.html"
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+  </main>
+
+    <!-- Modal -->
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+      <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+
+      </button>
+      <h2 class="text-lg font-bold mb-4">Document Details</h2>
+      <div class="space-y-2">
+        <p><strong>Vehicle:</strong> <span id="modalVehicle"></span></p>
+        <p><strong>Document Type:</strong> <span id="modalDocumentType"></span></p>
+        <p><strong>Expiry Date:</strong> <span id="modalExpiryDate"></span></p>
+        <p><strong>Status:</strong> <span id="modalStatus"></span></p>
+        <p><strong>Upload Date:</strong> <span id="modalUploadDate"></span></p>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script>
+    const vehicles = [
+      { plate: "ABC-123 Ford Transit", documentType: "Vehicle Registration", expiryDate:"2024-01-15" , status: "Expiring Soon", uploadDate: "Jan. 15, 2024" },
+      { plate: "XYZ-789 Mercedes Sprinter", documentType: "Insurance Certificate", expiryDate:"2024-01-20" , status: "Valid", uploadDate: "Sept. 30, 2023"},
+      { plate: "DEF-456 Volvo FH16", documentType: "Driver's License", expiryDate:"2024-01-18" , status: "Expired", uploadDate: "Aug. 20, 2020" },
+      { plate: "GHI-321 Isuzu NPR",  documentType: "Commercial License ", expiryDate:"2024-01-25" , status: "Valid", uploadDate: "March 10, 2023" },
+    ];
+
+    // get the tbody
+    const tBody = document.getElementById("approvalTable");
+
+    function renderTable(data) {
+      tBody.innerHTML = "";
+      if (!data.length) {
+        tBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-500">No vehicles found</td></tr>`;
+        return;
+      }
+      data.forEach((v, idx) => {  
+        const row = document.createElement("tr");
+        row.className = "hover:bg-gray-50";
+        row.innerHTML = `
+          <td class="p-2">${v.plate}</td>
+          <td class="p-2">${v.documentType}</td>
+          <td class="p-2">${v.expiryDate}</td>
+          <td class="px-4 py-2">${statusBadge(v.status)}</td>
+          <td class="p-2">${v.uploadDate}</td>
+          <td class="px-4 py-2">
+            <div class="flex gap-2">
+              <button 
+                class="flex items-center gap-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" 
+                onclick="viewDetails(${idx})">
+                <!-- Eye Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View Details
+              </button>
+            </div>
+          </td>
+        `;
+        tBody.appendChild(row);
+      });
+    }
+
+    function statusBadge(status) {
+      switch (status) {
+        case "Valid":
+          return `<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">${status}</span>`;
+        case "Expiring Soon":
+          return `<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">${status}</span>`;
+        case "Expired":
+          return `<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">${status}</span>`;
+        default:
+          return status;
+      }
+    }
+
+    // View Details (currently alert)
+    function viewDetails(idx) {
+      alert("Viewing details for: " + vehicles[idx].plate);
+    }
+
+     // Open Modal
+    function viewDetails(idx) {
+      const vehicle = vehicles[idx];
+      document.getElementById("modalVehicle").textContent = vehicle.plate;
+      document.getElementById("modalDocumentType").textContent = vehicle.documentType;
+      document.getElementById("modalExpiryDate").textContent = vehicle.expiryDate;
+      document.getElementById("modalStatus").textContent = vehicle.status;
+      document.getElementById("modalUploadDate").textContent = vehicle.uploadDate;
+      document.getElementById("detailsModal").classList.remove("hidden");
+    }
+
+    // Close Modal
+    function closeModal() {
+      document.getElementById("detailsModal").classList.add("hidden");
+    }
+    // Initialize
+    renderTable(vehicles);
+  </script>
+
+</body>
+</html>

@@ -139,23 +139,24 @@
     }
     
     article h2 {
-    color: #166534; 
-    font-weight: 700;
-    margin-top: 30px;
-    margin-bottom: 10px;
-  }
-  
-   article p {
-    color: #444;
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
+      color: #166534;
+      font-weight: 700;
+      margin-top: 30px;
+      margin-bottom: 10px;
+    }
+    
+    article p {
+      color: #444;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
 
   </style>
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-center bg-white">
 
+  <!-- Logo & Title -->
   <div class="text-center mb-8">
     <div class="w-16 h-16 mx-auto bg-green-600 rounded-full flex items-center justify-center">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -169,26 +170,43 @@
   </div>
 
   <div class="bg-white shadow-lg rounded-lg w-full max-w-md p-6 border-2 border-green-600 shadow-green-200">
-    <h2 class="text-xl font-semibold text-center mb-2 text-green-700">Log In</h2>
+    <h2 class="text-xl font-semibold text-center mb-2 text-green-700">Sign Up</h2>
     <p class="text-sm text-gray-600 text-center mb-4">Enter your credentials to access the dashboard</p>
 
-    <form id="LoginForm" class="space-y-4">
-
+    <form id="SignUpForm" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-black-700">Email Address</label>
-        <input id="email" type="email" placeholder="yourexample@.com..." required
+        <label class="block text-sm font-medium text-black-700">Full Name</label>
+        <input id="fullname" type="text" placeholder="Enter your Full Name" required
           class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-black-700">Password</label>
+        <label class="block text-sm font-medium text-black-700">Phone Number</label>
+        <input id="phonenumber" type="text" placeholder="Enter your Phone Number" required
+          class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-black-700">Email Address</label>
+        <input id="email" type="email" placeholder="Enter your Email Address" required
+          class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-black-700">Set Password</label>
         <input id="password" type="password" placeholder="Enter your password..." required
+          class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-black-700">Confirm Password</label>
+        <input id="confirmPassword" type="password" placeholder="Re-enter your password..." required
           class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
       </div>
 
       <button type="submit"
         class="w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
-        Log In
+        Sign Up
       </button>
 
       <p class="text-center text-sm text-gray-500 mt-2">
@@ -197,8 +215,8 @@
 
       <p id="message" class="text-center mt-4 text-sm font-medium"></p>
       <p class="text-center text-black-600 mt-4">
-        Doesn't have account? 
-        <a href="signup.html" class="text-green-500 hover:underline font-medium">SignUp Here</a>
+        Already have an account?
+        <a href="login.html" class="text-green-600 hover:underline font-medium">Login</a>
       </p>
       <p class="text-medium mt-2 text-center">
         By signing up, you agree to our
@@ -229,7 +247,8 @@
       <p class="text-black-600 text-sm mt-1">Effective Date: September 8, 2025 · Version 1.0</p>
     </header>
 
-    <nav class="bg-green-50 border border-green-100 rounded-lg p-4 mb-6">
+    <!-- Table of Contents -->
+<nav class="bg-green-50 border border-green-100 rounded-lg p-4 mb-6">
       <h2 class="text-green-700 font-semibold mb-2 flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
@@ -256,6 +275,8 @@
       </ol>
     </nav>
 
+
+    <!-- Article Content -->
     <article class="space-y-8 text-black-700 leading-relaxed">
       <section id="intro">
         <h3 class="text-xl font-semibold text-green-700 border-b border-green-200 pb-1">1. Introduction</h3>
@@ -329,7 +350,6 @@
         <h3 class="text-xl font-semibold text-green-700 border-b border-green-200 pb-1">13. Dispute Resolution</h3>
         <p class="mt-2 text-black">Disputes shall be resolved through mediation or arbitration where applicable.</p>
       </section>
-
       <section id="law">
         <h3 class="text-xl font-semibold text-green-700 border-b border-green-200 pb-1">14. Governing Law</h3>
         <p class="mt-2 text-black">These Terms are governed by the laws of the Republic of the Philippines.</p>

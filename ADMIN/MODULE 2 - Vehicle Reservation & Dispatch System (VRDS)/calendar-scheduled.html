@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>September 2025 Calendar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-5xl bg-white rounded-lg shadow-lg p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-semibold text-gray-700 text-center w-full">
+        September 2025
+      </h2>
+    </div>
+
+    <!-- Days of week -->
+    <div class="grid grid-cols-7 text-center font-medium text-gray-600 mb-2">
+      <div>Sun</div>
+      <div>Mon</div>
+      <div>Tue</div>
+      <div>Wed</div>
+      <div>Thu</div>
+      <div>Fri</div>
+      <div>Sat</div>
+    </div>
+
+    <!-- Calendar days -->
+    <div id="calendar" class="grid grid-cols-7 gap-1 text-center text-gray-700"></div>
+
+    <!-- Legend -->
+    <div class="flex justify-center space-x-4 mt-6 text-sm">
+      <div class="flex items-center space-x-1">
+        <span class="w-3 h-3 bg-red-300 rounded"></span><span>High Priority</span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <span class="w-3 h-3 bg-yellow-300 rounded"></span><span>Medium Priority</span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <span class="w-3 h-3 bg-green-300 rounded"></span><span>Low Priority</span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <span class="w-3 h-3 border-2 border-green-500 rounded"></span><span>Today</span>
+      </div>
+    </div>
+
+    <!-- Exit button -->
+    <div class="flex justify-end mt-6">
+      <a href="dispatch-assignment.html"
+         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const calendarEl = document.getElementById("calendar");
+
+    // September 2025 starts on Monday (Sept 1) and has 30 days
+    const daysInMonth = 30;
+    const firstDay = new Date(2025, 8, 1).getDay(); // 0=Sun, 1=Mon, ...
+
+    // Fill empty cells before the 1st
+    for (let i = 0; i < firstDay; i++) {
+      const emptyCell = document.createElement("div");
+      emptyCell.className = "h-20 border border-gray-200 bg-gray-50";
+      calendarEl.appendChild(emptyCell);
+    }
+
+    // Fill days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cell = document.createElement("div");
+      cell.className =
+        "h-20 border border-gray-200 flex items-start justify-end p-1 relative";
+
+      cell.innerHTML = `<span class="absolute top-1 left-1 text-sm">${day}</span>`;
+
+      // Example highlights
+      if (day === 2) {
+        cell.classList.add("border-2", "border-green-500"); // Today
+      }
+      if (day === 10) {
+        cell.classList.add("bg-red-200"); // High Priority
+      }
+      if (day === 15) {
+        cell.classList.add("bg-yellow-200"); // Medium Priority
+      }
+      if (day === 20) {
+        cell.classList.add("bg-green-200"); // Low Priority
+      }
+
+      calendarEl.appendChild(cell);
+    }
+  </script>
+</body>
+</html>

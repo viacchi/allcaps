@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vehicle Health Score Trends</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <main class="p-6 max-w-6xl mx-auto">
+    <!-- Page Header -->
+    <h2 class="text-xl font-semibold mb-2">Vehicle Health Score Trends</h2>
+    <p class="text-gray-600 mb-6">Health scores over time for fleet vehicles</p>
+
+    <!-- Chart Card -->
+    <div class="bg-white p-4 rounded-lg shadow">
+      <canvas id="healthChart" style="height:400px;"></canvas>
+    </div>
+      <div class="flex justify-end mt-5">
+        <a href="admin.html"
+         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+  </main>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const ctx = document.getElementById('healthChart');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          datasets: [
+            {
+              label: 'Ford Transit',
+              data: [95, 93, 91, 89, 87, 85],
+              fill: true,
+              borderColor: 'rgba(59,130,246,1)', // blue
+              backgroundColor: 'rgba(59,130,246,0.1)',
+              tension: 0.3
+            },
+            {
+              label: 'Mercedes Sprinter',
+              data: [92, 91, 89, 88, 86, 84],
+              fill: true,
+              borderColor: 'rgba(16,185,129,1)', // green
+              backgroundColor: 'rgba(16,185,129,0.1)',
+              tension: 0.3
+            },
+            {
+              label: 'Volvo FH16',
+              data: [90, 88, 87, 85, 83, 80],
+              fill: true,
+              borderColor: 'rgba(239,68,68,1)', // red
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, 
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: {
+                display: true,
+                text: 'Health Score (%)'
+              }
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

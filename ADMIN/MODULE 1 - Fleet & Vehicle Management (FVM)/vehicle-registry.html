@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vehicle Registry · Logistics II</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <!-- Main content -->
+  <main class="pt-16 flex justify-center">
+    <div class="w-full max-w-5xl mx-auto px-6 py-6">
+      <header class="mb-4 text-center">
+        <h1 id="pageTitle" class="text-2xl font-semibold">
+          Vehicle Registry
+        </h1>
+        <p id="pageSubtitle" class="text-gray-600 mt-1">
+          Centralized list of all registered vehicles with their details
+        </p>
+      </header>
+
+      <!-- Search & Add -->
+      <section id="searchCard" class="mt-6 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow">
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <input id="searchInput" type="text"
+                placeholder="Search vehicles by plate/model..."
+                class="w-full bg-white border border-gray-300 rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-600/40 focus:border-green-600" />
+            </div>
+            <button id="addVehicleBtn"
+              class="inline-flex items-center gap-1 px-3 py-2 border rounded-md bg-green-600 text-white hover:bg-green-700">
+              + Add Vehicle
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow">
+        <h2 class="text-lg font-semibold mb-3">
+          Fleet Vehicles
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm bg-white">
+            <thead class="bg-green-700 text-white">
+              <tr>
+                <th class="p-2 text-left">Plate Number</th>
+                <th class="p-2 text-left">Model</th>
+                <th class="p-2 text-left">Type</th>
+                <th class="p-2 text-left">Year</th>
+                <th class="p-2 text-left">Status</th>
+                <th class="p-2 text-left">Availability</th>
+                <th class="p-2 text-left">Last Maintenance</th>
+                <th class="p-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vehicle-table" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+            <div class="flex justify-end">
+        <a href="admin.html"
+         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Exit
+      </a>
+    </div>
+    </div>
+  </main>
+</body>
+
+
+      <!-- Add Vehicle Modal -->
+      <div id="vehicleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6">
+          <div class="flex justify-between items-center border-b pb-2 mb-4">
+            <h3 class="text-lg font-semibold">Add New Vehicle</h3>
+            <button id="closeModalBtn" class="text-gray-500 hover:text-gray-800">&times;</button>
+          </div>
+          <form id="vehicleForm" class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium">Plate Number *</label>
+              <input id="inpPlate" type="text" class="mt-1 block w-full border rounded-md p-2" placeholder="ABC-123" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Model *</label>
+              <input id="inpModel" type="text" class="mt-1 block w-full border rounded-md p-2" placeholder="Ford Transit" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Type *</label>
+              <select id="inpType" class="mt-1 block w-full border rounded-md p-2">
+                <option>Van</option>
+                <option>Truck</option>
+                <option>Car</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Year *</label>
+              <input id="inpYear" type="number" class="mt-1 block w-full border rounded-md p-2" placeholder="2023">
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Status</label>
+              <select id="inpStatus" class="mt-1 block w-full border rounded-md p-2">
+                <option>Active</option>
+                <option>Inactive</option>
+                <option>Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Availability</label>
+              <select id="inpAvailability" class="mt-1 block w-full border rounded-md p-2">
+                <option>Available</option>
+                <option>In Use</option>
+                <option>Unavailable</option>
+              </select>
+            </div>
+            <div class="col-span-2 flex justify-end gap-2 mt-2">
+              <button type="button" id="cancelModal" class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+              <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Save Vehicle</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+   
+  <!-- JS -->
+  <script>
+    const vehicles = [
+      { plate: "ABC-123", model: "Ford Transit", type: "Van", year: 2022, status: "Active", availability: "Available", lastMaintenance: "2024-01-15" },
+      { plate: "XYZ-789", model: "Mercedes Sprinter", type: "Van", year: 2023, status: "Active", availability: "In Use", lastMaintenance: "2024-01-20" },
+      { plate: "DEF-456", model: "Volvo FH16", type: "Truck", year: 2021, status: "Maintenance", availability: "Unavailable", lastMaintenance: "2024-01-10" },
+      { plate: "GHI-321", model: "Isuzu NPR", type: "Truck", year: 2020, status: "Active", availability: "Available", lastMaintenance: "2024-01-18" },
+    ];
+
+    // DOM References
+    const tBody = document.getElementById("vehicle-table");
+    const searchInput = document.getElementById("searchInput");
+    const addVehicleBtn = document.getElementById("addVehicleBtn");
+    const vehicleModal = document.getElementById("vehicleModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const cancelModal = document.getElementById("cancelModal");
+    const vehicleForm = document.getElementById("vehicleForm");
+
+    // Render Table
+    function renderTable(data) {
+      tBody.innerHTML = "";
+      if (!data.length) {
+        tBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-500">No vehicles found</td></tr>`;
+        return;
+      }
+      data.forEach(v => {
+        const row = document.createElement("tr");
+        row.className = "hover:bg-gray-50";
+        row.innerHTML = `
+          <td class="p-2">${v.plate}</td>
+          <td class="p-2"><a href="#" class="text-green-700 hover:underline">${v.model}</a></td>
+          <td class="p-2">${v.type}</td>
+          <td class="p-2">${v.year}</td>
+          <td class="p-2">${v.status}</td>
+          <td class="p-2">${v.availability}</td>
+          <td class="p-2">${v.lastMaintenance}</td>
+          <td class="p-2">
+            <div class="flex gap-2">
+              <button class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" onclick="editVehicle('${v.plate}')">Edit</button>
+              <button class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600" onclick="deleteVehicle('${v.plate}')">Delete</button>
+            </div>
+          </td>
+        `;
+        tBody.appendChild(row);
+      });
+    }
+
+    function refreshTable() {
+      const q = (searchInput?.value || "").trim().toLowerCase();
+      const filtered = vehicles.filter(v => v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q));
+      renderTable(filtered);
+    }
+
+    searchInput?.addEventListener("input", refreshTable);
+
+    window.editVehicle = plate => alert("Edit vehicle: " + plate);
+    window.deleteVehicle = plate => {
+      if (!confirm("Delete vehicle: " + plate + "?")) return;
+      const idx = vehicles.findIndex(v => v.plate === plate);
+      if (idx >= 0) {
+        vehicles.splice(idx, 1);
+        refreshTable();
+      }
+    };
+
+    // Modal Logic
+    function openModal() {
+      vehicleModal.classList.remove("hidden");
+      vehicleModal.classList.add("flex");
+    }
+    function closeModal() {
+      vehicleModal.classList.add("hidden");
+      vehicleModal.classList.remove("flex");
+      vehicleForm.reset();
+    }
+    addVehicleBtn?.addEventListener("click", openModal);
+    closeModalBtn?.addEventListener("click", closeModal);
+    cancelModal?.addEventListener("click", closeModal);
+
+    vehicleForm?.addEventListener("submit", e => {
+      e.preventDefault();
+      const newV = {
+        plate: document.getElementById("inpPlate").value || "NEW-000",
+        model: document.getElementById("inpModel").value || "Unknown",
+        type: document.getElementById("inpType").value || "Van",
+        year: Number(document.getElementById("inpYear").value) || new Date().getFullYear(),
+        status: document.getElementById("inpStatus").value || "Active",
+        availability: document.getElementById("inpAvailability").value || "Available",
+        lastMaintenance: new Date().toISOString().slice(0,10)
+      };
+      vehicles.unshift(newV);
+      closeModal();
+      refreshTable();
+    });
+
+    // Init
+    refreshTable();
+  </script>
+</body>
+</html>
