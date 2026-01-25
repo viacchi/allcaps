@@ -1,6 +1,32 @@
 <?php
 include '../includes/functions.php';
 $maintenance = getMaintenanceRecords();
+
+// Handle scheduling a new maintenance
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['schedule_maintenance'])) {
+        $vehicleId = getVehicleIdByPlate($_POST['vehicle']);
+        if ($vehicleId) {
+            addMaintenance([
+                'vehicle_id' => $vehicleId,
+                'type' => $_POST['type'],
+                'date' => $_POST['date'],
+                'cost' => $_POST['cost'],
+                'notes' => $_POST['notes'] ?? ''
+            ]);
+        }
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+
+    // Mark maintenance complete
+    if (isset($_POST['complete_id'])) {
+        completeMaintenance($_POST['complete_id']);
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -135,6 +161,7 @@ $maintenance = getMaintenanceRecords();
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Cost</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Notes</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Actions</th>
                             </tr>
                         </thead>
@@ -153,10 +180,17 @@ $maintenance = getMaintenanceRecords();
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-700 font-medium">₱<?php echo number_format($record['cost']); ?></td>
+                                <td class="px-5 py-4 text-sm text-gray-700 font-medium">
+                                    <?php echo htmlspecialchars($record['notes']); ?>
+                                </td>
+
                                 <td class="px-5 py-4 text-sm">
-                                    <button class="px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all inline-flex items-center gap-1.5" onclick="markComplete(<?php echo $record['id']; ?>)">
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="complete_id" value="<?php echo $record['id']; ?>">
+                                    <button type="submit" class="px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green">
                                         <i class="fas fa-check"></i> Mark Complete
                                     </button>
+                                </form>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -167,67 +201,95 @@ $maintenance = getMaintenanceRecords();
         </main>
     </div>
 
-    <!-- Schedule Maintenance Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="scheduleModal">
-        <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center p-6 border-b border-gray-200">
-                <h3 class="text-xl font-bold text-gray-900">Schedule Maintenance</h3>
-                <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
-                    <i class="fas fa-times"></i>
-                </button>
+<!-- Schedule Maintenance Modal -->
+<div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="scheduleModal">
+    <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-8">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center mb-6">
+            <span class="text-xl font-bold text-gray-900">Schedule Maintenance</span>
+            <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form id="scheduleForm" method="POST">
+            <input type="hidden" name="schedule_maintenance" value="1">
+
+            <!-- Vehicle -->
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
+                <select name="vehicle" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                           focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                    <option value="">Select Vehicle</option>
+                    <?php foreach (getVehicles() as $vehicle): ?>
+                        <option value="<?php echo $vehicle['plate']; ?>">
+                            <?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
-            <form id="scheduleForm" onsubmit="saveMaintenance(event)" class="p-6">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                    <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                        <option value="">Select Vehicle</option>
-                        <?php foreach (getVehicles() as $vehicle): ?>
-                        <option value="<?php echo $vehicle['plate']; ?>"><?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <!-- Maintenance Type -->
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Maintenance Type *</label>
+                <select name="type" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                           focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                    <option value="">Select Type</option>
+                    <option value="Oil Change">Oil Change</option>
+                    <option value="Tire Replacement">Tire Replacement</option>
+                    <option value="Engine Inspection">Engine Inspection</option>
+                    <option value="Brake Service">Brake Service</option>
+                    <option value="Battery Replacement">Battery Replacement</option>
+                    <option value="AC Service">AC Service</option>
+                </select>
+            </div>
 
+            <!-- Date & Cost -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Maintenance Type *</label>
-                    <select id="maintenanceType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                        <option value="">Select Type</option>
-                        <option value="Oil Change">Oil Change</option>
-                        <option value="Tire Replacement">Tire Replacement</option>
-                        <option value="Engine Inspection">Engine Inspection</option>
-                        <option value="Brake Service">Brake Service</option>
-                        <option value="Battery Replacement">Battery Replacement</option>
-                        <option value="AC Service">AC Service</option>
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Scheduled Date *</label>
-                        <input type="date" id="scheduleDate" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Estimated Cost *</label>
-                        <input type="number" id="estimatedCost" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
-                    </div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Scheduled Date *</label>
+                    <input type="date" name="date" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                               focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
-                    <textarea id="notes" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Additional notes..." rows="3"></textarea>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Estimated Cost *</label>
+                    <input type="number" name="cost" required placeholder="0.00"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                               focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                 </div>
+            </div>
 
-                <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button type="button" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeScheduleModal()">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300 inline-flex items-center justify-center gap-2">
-                        <i class="fas fa-calendar-check"></i> Schedule
-                    </button>
-                </div>
-            </form>
-        </div>
+            <!-- Notes -->
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
+                <textarea name="notes" rows="3" placeholder="Additional notes..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                           focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent"></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 mt-6">
+                <button type="submit"
+                    class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold
+                           hover:bg-dark-green transition-all duration-300 inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Schedule Maintenance
+                </button>
+
+                <button type="button"
+                    class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold
+                           hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2"
+                    onclick="closeScheduleModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
     </div>
+</div>
 
     <script>
         function filterTable() {

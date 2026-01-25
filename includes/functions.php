@@ -1,728 +1,826 @@
 <?php
-// Shared functions for the dashboard
-// Mock data - Replace with database queries
+// functions.php - Connect to database and fetch data
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 1️⃣ Database connection
+$conn = new mysqli('localhost', 'root', '', 'logistics2');
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+
+
+// 2️⃣ VEHICLES
 function getVehicles() {
-    return [
-        ['id' => 1, 'plate' => 'ABC-1234', 'model' => 'Toyota Hiace', 'type' => 'Van', 'year' => 2022, 'status' => 'Active', 'last_maintenance' => '2024-08-15'],
-        ['id' => 2, 'plate' => 'XYZ-5678', 'model' => 'Isuzu NPR', 'type' => 'Truck', 'year' => 2021, 'status' => 'Active', 'last_maintenance' => '2024-09-01'],
-        ['id' => 3, 'plate' => 'DEF-9012', 'model' => 'Honda CB500', 'type' => 'Motorcycle', 'year' => 2023, 'status' => 'Active', 'last_maintenance' => '2024-07-20'],
-        ['id' => 4, 'plate' => 'GHI-3456', 'model' => 'Mitsubishi Fuso', 'type' => 'Truck', 'year' => 2020, 'status' => 'Maintenance', 'last_maintenance' => '2024-06-10'],
-        ['id' => 5, 'plate' => 'JKL-7890', 'model' => 'Toyota Fortuner', 'type' => 'Car', 'year' => 2019, 'status' => 'Inactive', 'last_maintenance' => '2024-05-15'],
-        ['id' => 6, 'plate' => 'MNO-2345', 'model' => 'Suzuki Carry', 'type' => 'Van', 'year' => 2022, 'status' => 'Active', 'last_maintenance' => '2024-08-25'],
-    ];
+    global $conn;
+    $sql = "SELECT * FROM vehicles ORDER BY vehicle ASC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function getMaintenanceRecords() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'type' => 'Oil Change', 'date' => '2024-10-15', 'cost' => 2500, 'status' => 'Completed'],
-        ['id' => 2, 'vehicle' => 'XYZ-5678', 'type' => 'Tire Replacement', 'date' => '2024-10-18', 'cost' => 8000, 'status' => 'In Progress'],
-        ['id' => 3, 'vehicle' => 'DEF-9012', 'type' => 'Engine Inspection', 'date' => '2024-10-20', 'cost' => 5000, 'status' => 'Pending'],
-        ['id' => 4, 'vehicle' => 'GHI-3456', 'type' => 'Brake Service', 'date' => '2024-10-12', 'cost' => 6500, 'status' => 'Completed'],
-    ];
+// 3️⃣ DRIVERS
+function getDrivers() {
+    global $conn;
+    $sql = "SELECT * FROM drivers ORDER BY name ASC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function getFuelExpenses() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'date' => '2024-10-10', 'liters' => 50, 'cost' => 2500, 'driver' => 'John Smith'],
-        ['id' => 2, 'vehicle' => 'XYZ-5678', 'date' => '2024-10-09', 'liters' => 60, 'cost' => 3000, 'driver' => 'Jane Doe'],
-    ];
+// 4️⃣ AVAILABLE DRIVERS
+function getAvailableDrivers() {
+    global $conn;
+    $sql = "SELECT * FROM drivers WHERE status='Active' ORDER BY name ASC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function getApprovals() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'type' => 'Maintenance', 'amount' => 5000, 'status' => 'Pending', 'date' => '2024-10-10'],
-        ['id' => 2, 'vehicle' => 'DEF-9012', 'type' => 'Repair', 'amount' => 8000, 'status' => 'Approved', 'date' => '2024-10-08'],
-    ];
+
+// 5️⃣ TRIPS / DISPATCH ASSIGNMENTS
+function getTrips() {
+    global $conn;
+    $sql = "SELECT t.id, v.vehicle, v.model, v.type, d.name AS driver, t.route, t.dispatch_date, t.return_date, t.status AS availability, v.lat, v.lng
+            FROM trips t
+            JOIN vehicles v ON t.vehicle_id = v.id
+            LEFT JOIN drivers d ON t.driver_id = d.id
+            ORDER BY t.dispatch_date DESC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function getComplianceRecords() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'document' => 'Insurance', 'expiry' => '2025-03-15', 'status' => 'Valid'],
-        ['id' => 2, 'vehicle' => 'XYZ-5678', 'document' => 'Registration', 'expiry' => '2024-12-31', 'status' => 'Expiring Soon'],
-    ];
-}
-
-function getPredictiveData() {
-    return [
-        ['vehicle' => 'ABC-1234', 'prediction' => 'Oil Change Due', 'confidence' => 95, 'days' => 5],
-        ['vehicle' => 'XYZ-5678', 'prediction' => 'Brake Inspection', 'confidence' => 87, 'days' => 12],
-    ];
-}
-
-// Get KPI data
-function getKPIData() {
-    $vehicles = getVehicles();
-    return [
-        'total_vehicles' => count($vehicles),
-        'active_vehicles' => count(array_filter($vehicles, fn($v) => $v['status'] === 'Active')),
-        'maintenance_due' => count(array_filter($vehicles, fn($v) => $v['status'] === 'Maintenance')),
-        'inactive_vehicles' => count(array_filter($vehicles, fn($v) => $v['status'] === 'Inactive')),
-    ];
-}
-
-function getStatusClass($status) {
-    switch($status) {
-        case 'Active':
-        case 'Completed':
-        case 'Valid':
-            return 'status-active';
-        case 'Maintenance':
-        case 'In Progress':
-        case 'Pending':
-            return 'status-maintenance';
-        case 'Inactive':
-        case 'Expiring Soon':
-            return 'status-inactive';
-        default:
-            return 'status-maintenance';
-    }
+// 6️⃣ TRIP SCHEDULES (for calendar)
+function getTripSchedules() {
+    global $conn;
+    $sql = "SELECT t.id, v.vehicle, d.name AS driver, t.route, t.dispatch_date AS date
+            FROM trips t
+            JOIN vehicles v ON t.vehicle_id = v.id
+            LEFT JOIN drivers d ON t.driver_id = d.id
+            ORDER BY t.dispatch_date ASC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
 function getDispatchAssignments() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'model' => 'Toyota Hiace', 'type' => 'Van', 'driver' => 'John Smith', 'status' => 'Active', 'dispatch_date' => '2024-10-29', 'route' => 'Manila - Quezon City', 'availability' => 'Assigned'],
-        ['id' => 2, 'vehicle' => 'XYZ-5678', 'model' => 'Isuzu NPR', 'type' => 'Truck', 'driver' => 'Jane Doe', 'status' => 'Active', 'dispatch_date' => '2024-10-29', 'route' => 'Manila - Makati', 'availability' => 'Assigned'],
-        ['id' => 3, 'vehicle' => 'DEF-9012', 'model' => 'Honda CB500', 'type' => 'Motorcycle', 'driver' => null, 'status' => 'Available', 'dispatch_date' => null, 'route' => null, 'availability' => 'Available'],
-        ['id' => 4, 'vehicle' => 'GHI-3456', 'model' => 'Mitsubishi Fuso', 'type' => 'Truck', 'driver' => 'Mike Johnson', 'status' => 'Active', 'dispatch_date' => '2024-10-30', 'route' => 'Manila - Pasig', 'availability' => 'Assigned'],
-        ['id' => 5, 'vehicle' => 'JKL-7890', 'model' => 'Toyota Fortuner', 'type' => 'Car', 'driver' => null, 'status' => 'Maintenance', 'dispatch_date' => null, 'route' => null, 'availability' => 'Maintenance'],
-        ['id' => 6, 'vehicle' => 'MNO-2345', 'model' => 'Suzuki Carry', 'type' => 'Van', 'driver' => null, 'status' => 'Available', 'dispatch_date' => null, 'route' => null, 'availability' => 'Available'],
-    ];
-}
-
-function getAvailableDrivers() {
-    return [
-        ['id' => 1, 'name' => 'John Smith', 'license' => 'N01-12-123456', 'status' => 'On Duty', 'contact' => '0917-123-4567'],
-        ['id' => 2, 'name' => 'Jane Doe', 'license' => 'N01-12-234567', 'status' => 'On Duty', 'contact' => '0917-234-5678'],
-        ['id' => 3, 'name' => 'Mike Johnson', 'license' => 'N01-12-345678', 'status' => 'On Duty', 'contact' => '0917-345-6789'],
-        ['id' => 4, 'name' => 'Sarah Williams', 'license' => 'N01-12-456789', 'status' => 'Available', 'contact' => '0917-456-7890'],
-        ['id' => 5, 'name' => 'David Brown', 'license' => 'N01-12-567890', 'status' => 'Available', 'contact' => '0917-567-8901'],
-        ['id' => 6, 'name' => 'Emma Wilson', 'license' => 'N01-12-678901', 'status' => 'Off Duty', 'contact' => '0917-678-9012'],
-    ];
-}
-
-function getDispatchSchedules() {
-    return [
-        ['date' => '2024-10-29', 'vehicle' => 'ABC-1234', 'driver' => 'John Smith', 'route' => 'Manila - Quezon City'],
-        ['date' => '2024-10-29', 'vehicle' => 'XYZ-5678', 'driver' => 'Jane Doe', 'route' => 'Manila - Makati'],
-        ['date' => '2024-10-30', 'vehicle' => 'GHI-3456', 'driver' => 'Mike Johnson', 'route' => 'Manila - Pasig'],
-        ['date' => '2024-10-31', 'vehicle' => 'ABC-1234', 'driver' => 'Sarah Williams', 'route' => 'Manila - Taguig'],
-    ];
+    global $conn;
+    $sql = "SELECT d.id, v.vehicle, v.model, v.type, d.driver_id, dr.name AS driver, d.status, d.dispatch_date, d.route, d.availability, v.lat, v.lng
+            FROM dispatches d
+            JOIN vehicles v ON d.vehicle_id = v.id
+            LEFT JOIN drivers dr ON d.driver_id = dr.id
+            ORDER BY d.dispatch_date DESC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
 
-// Get reservation records
-function getReservations() {
-    return [
-        ['id' => 1, 'vehicle' => 'ABC-1234', 'model' => 'Toyota Hiace', 'type' => 'Van', 'driver' => 'John Smith', 'date' => '2024-10-29', 'time' => '08:00 AM', 'destination' => 'Quezon City Hall', 'purpose' => 'Document Delivery', 'duration' => '4 hours', 'status' => 'In Use', 'created_at' => '2024-10-28'],
-        ['id' => 2, 'vehicle' => 'XYZ-5678', 'model' => 'Isuzu NPR', 'type' => 'Truck', 'driver' => 'Jane Doe', 'date' => '2024-10-29', 'time' => '10:00 AM', 'destination' => 'Makati Business District', 'purpose' => 'Equipment Transport', 'duration' => '6 hours', 'status' => 'Assigned', 'created_at' => '2024-10-28'],
-        ['id' => 3, 'vehicle' => 'DEF-9012', 'model' => 'Honda CB500', 'type' => 'Motorcycle', 'driver' => null, 'date' => '2024-10-30', 'time' => '09:00 AM', 'destination' => 'BGC Taguig', 'purpose' => 'Urgent Delivery', 'duration' => '2 hours', 'status' => 'Pending Dispatch', 'created_at' => '2024-10-29'],
-        ['id' => 4, 'vehicle' => 'GHI-3456', 'model' => 'Mitsubishi Fuso', 'type' => 'Truck', 'driver' => 'Mike Johnson', 'date' => '2024-10-28', 'time' => '07:00 AM', 'destination' => 'Pasig Warehouse', 'purpose' => 'Inventory Transfer', 'duration' => '8 hours', 'status' => 'Completed', 'created_at' => '2024-10-27'],
-        ['id' => 5, 'vehicle' => 'JKL-7890', 'model' => 'Toyota Fortuner', 'type' => 'Car', 'driver' => 'Sarah Williams', 'date' => '2024-10-27', 'time' => '02:00 PM', 'destination' => 'Manila Bay Area', 'purpose' => 'Client Meeting', 'duration' => '3 hours', 'status' => 'Cancelled', 'created_at' => '2024-10-26'],
-        ['id' => 6, 'vehicle' => 'MNO-2345', 'model' => 'Suzuki Carry', 'type' => 'Van', 'driver' => 'David Brown', 'date' => '2024-10-30', 'time' => '11:00 AM', 'destination' => 'Ortigas Center', 'purpose' => 'Supply Pickup', 'duration' => '5 hours', 'status' => 'Assigned', 'created_at' => '2024-10-29'],
-    ];
+function addVehicle($data) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        INSERT INTO vehicles (plate, model, type, year, status, last_maintenance)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt->bind_param(
+        "sssiss",
+        $data['plate'],            // s = string
+        $data['model'],            // s
+        $data['type'],             // s
+        $data['year'],             // i = integer
+        $data['status'],           // s
+        $data['last_maintenance']  // s (can be null)
+    );
+
+    return $stmt->execute();
 }
 
-// Get reservation by ID
-function getReservationById($id) {
-    $reservations = getReservations();
-    foreach ($reservations as $reservation) {
-        if ($reservation['id'] == $id) {
-            return $reservation;
-        }
+
+function updateVehicle($data) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        UPDATE vehicles 
+        SET plate = ?, model = ?, type = ?, year = ?, status = ?, last_maintenance = ?
+        WHERE id = ?
+    ");
+
+    $stmt->bind_param(
+        "sssissi",
+        $data['plate'],            // s = string
+        $data['model'],            // s
+        $data['type'],             // s
+        $data['year'],             // i = integer
+        $data['status'],           // s
+        $data['last_maintenance'], // s
+        $data['id']                // i
+    );
+
+    return $stmt->execute();
+}
+
+function deactivateVehicle($id) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        UPDATE vehicles 
+        SET status = 'Inactive'
+        WHERE id = ?
+    ");
+    $stmt->bind_param("i", $id);
+    return $stmt->execute();
+}
+
+
+// 8️⃣ MAINTENANCE RECORDS
+function getMaintenanceRecords() {
+    global $conn;
+    $sql = "SELECT m.id, v.vehicle, m.type, m.date, m.cost, m.status, m.notes
+            FROM maintenance m
+            JOIN vehicles v ON m.vehicle_id = v.id
+            ORDER BY m.date DESC";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+}
+
+// Add a new maintenance record
+function addMaintenance($data) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        INSERT INTO maintenance
+        (vehicle_id, type, date, cost, notes, status)
+        VALUES (?, ?, ?, ?, ?, 'In Progress')
+    ");
+
+    if (!$stmt) {
+        die("Prepare failed: " . $conn->error);
     }
-    return null;
+
+    $stmt->bind_param(
+        "issds",
+        $data['vehicle_id'],
+        $data['type'],
+        $data['date'],
+        $data['cost'],
+        $data['notes']
+    );
+
+    return $stmt->execute();
 }
 
-// Get vehicle availability for calendar
-function getVehicleAvailability() {
-    return [
-        ['date' => '2024-10-29', 'vehicle' => 'ABC-1234', 'status' => 'Assigned', 'driver' => 'John Smith', 'destination' => 'Quezon City', 'time' => '08:00 AM'],
-        ['date' => '2024-10-29', 'vehicle' => 'XYZ-5678', 'status' => 'Assigned', 'driver' => 'Jane Doe', 'destination' => 'Makati', 'time' => '10:00 AM'],
-        ['date' => '2024-10-29', 'vehicle' => 'GHI-3456', 'status' => 'Maintenance', 'driver' => null, 'destination' => null, 'time' => null],
-        ['date' => '2024-10-30', 'vehicle' => 'ABC-1234', 'status' => 'Available', 'driver' => null, 'destination' => null, 'time' => null],
-        ['date' => '2024-10-30', 'vehicle' => 'DEF-9012', 'status' => 'Assigned', 'driver' => 'Mike Johnson', 'destination' => 'Pasig', 'time' => '09:00 AM'],
-        ['date' => '2024-10-30', 'vehicle' => 'JKL-7890', 'status' => 'Maintenance', 'driver' => null, 'destination' => null, 'time' => null],
-        ['date' => '2024-10-31', 'vehicle' => 'ABC-1234', 'status' => 'Assigned', 'driver' => 'Sarah Williams', 'destination' => 'Taguig', 'time' => '11:00 AM'],
-        ['date' => '2024-10-31', 'vehicle' => 'MNO-2345', 'status' => 'Available', 'driver' => null, 'destination' => null, 'time' => null],
-        ['date' => '2024-11-01', 'vehicle' => 'XYZ-5678', 'status' => 'Assigned', 'driver' => 'David Brown', 'destination' => 'Manila', 'time' => '07:00 AM'],
-        ['date' => '2024-11-01', 'vehicle' => 'ABC-1234', 'status' => 'Available', 'driver' => null, 'destination' => null, 'time' => null],
-    ];
-}
+// Mark a maintenance record complete
+function completeMaintenance($id) {
+    global $conn;
 
-// Get all unique locations
-function getLocations() {
-    return ['Manila', 'Quezon City', 'Makati', 'Pasig', 'Taguig', 'Mandaluyong', 'BGC', 'Ortigas'];
-}
+    $stmt = $conn->prepare("
+        UPDATE maintenance
+        SET status = 'Completed'
+        WHERE id = ?
+    ");
 
-// Get driver behavior analytics
-function getDriverBehaviorData() {
-    return [
-        ['driver' => 'John Smith', 'speeding' => 3, 'harsh_braking' => 5, 'idle_time' => 45, 'score' => 92, 'trips' => 28],
-        ['driver' => 'Jane Doe', 'speeding' => 1, 'harsh_braking' => 2, 'idle_time' => 30, 'score' => 96, 'trips' => 32],
-        ['driver' => 'Mike Johnson', 'speeding' => 7, 'harsh_braking' => 12, 'idle_time' => 78, 'score' => 78, 'trips' => 25],
-        ['driver' => 'Sarah Williams', 'speeding' => 2, 'harsh_braking' => 3, 'idle_time' => 38, 'score' => 94, 'trips' => 30],
-        ['driver' => 'David Brown', 'speeding' => 4, 'harsh_braking' => 8, 'idle_time' => 52, 'score' => 85, 'trips' => 27],
-        ['driver' => 'Emma Wilson', 'speeding' => 0, 'harsh_braking' => 1, 'idle_time' => 22, 'score' => 98, 'trips' => 35],
-    ];
-}
-
-// Get behavior incidents
-function getBehaviorIncidents() {
-    return [
-        ['date' => '2024-10-28', 'driver' => 'Mike Johnson', 'type' => 'Speeding', 'severity' => 'High', 'location' => 'EDSA-Quezon Ave', 'speed' => 85],
-        ['date' => '2024-10-27', 'driver' => 'John Smith', 'type' => 'Harsh Braking', 'severity' => 'Medium', 'location' => 'C5 Road', 'speed' => null],
-        ['date' => '2024-10-26', 'driver' => 'David Brown', 'type' => 'Excessive Idle', 'severity' => 'Low', 'location' => 'Makati Ave', 'speed' => null],
-        ['date' => '2024-10-25', 'driver' => 'Mike Johnson', 'type' => 'Speeding', 'severity' => 'High', 'location' => 'SLEX Northbound', 'speed' => 95],
-    ];
-}
-
-// Get monthly behavior trends
-function getMonthlyBehaviorTrends() {
-    return [
-        ['month' => 'May', 'speeding' => 12, 'harsh_braking' => 18, 'idle_time' => 245],
-        ['month' => 'Jun', 'speeding' => 15, 'harsh_braking' => 22, 'idle_time' => 298],
-        ['month' => 'Jul', 'speeding' => 10, 'harsh_braking' => 16, 'idle_time' => 210],
-        ['month' => 'Aug', 'speeding' => 8, 'harsh_braking' => 14, 'idle_time' => 185],
-        ['month' => 'Sep', 'speeding' => 11, 'harsh_braking' => 19, 'idle_time' => 220],
-        ['month' => 'Oct', 'speeding' => 17, 'harsh_braking' => 31, 'idle_time' => 265],
-    ];
-}
-
-function getIncidentCases() {
-    return [
-        ['id' => 1, 'case_number' => 'INC-2024-001', 'date' => '2024-10-28', 'driver' => 'Mike Johnson', 'vehicle' => 'GHI-3456', 'type' => 'Accident', 'severity' => 'High', 'status' => 'Under Investigation', 'description' => 'Minor collision at intersection', 'location' => 'EDSA-Quezon Ave', 'reported_by' => 'Admin'],
-        ['id' => 2, 'case_number' => 'INC-2024-002', 'date' => '2024-10-27', 'driver' => 'John Smith', 'vehicle' => 'ABC-1234', 'type' => 'Traffic Violation', 'severity' => 'Medium', 'status' => 'Resolved', 'description' => 'Illegal parking citation', 'location' => 'Makati CBD', 'reported_by' => 'Traffic Enforcer'],
-        ['id' => 3, 'case_number' => 'INC-2024-003', 'date' => '2024-10-26', 'driver' => 'David Brown', 'vehicle' => 'MNO-2345', 'type' => 'Breakdown', 'severity' => 'Low', 'status' => 'Closed', 'description' => 'Engine overheating', 'location' => 'C5 Road', 'reported_by' => 'Driver'],
-        ['id' => 4, 'case_number' => 'INC-2024-004', 'date' => '2024-10-25', 'driver' => 'Jane Doe', 'vehicle' => 'XYZ-5678', 'type' => 'Speeding', 'severity' => 'Medium', 'status' => 'Pending Review', 'description' => 'Exceeded speed limit by 20km/h', 'location' => 'SLEX Southbound', 'reported_by' => 'Traffic Camera'],
-        ['id' => 5, 'case_number' => 'INC-2024-005', 'date' => '2024-10-24', 'driver' => 'Mike Johnson', 'vehicle' => 'GHI-3456', 'type' => 'Rule Violation', 'severity' => 'High', 'status' => 'Under Investigation', 'description' => 'Driving without proper documentation', 'location' => 'Pasig City', 'reported_by' => 'Security'],
-        ['id' => 6, 'case_number' => 'INC-2024-006', 'date' => '2024-10-23', 'driver' => 'Sarah Williams', 'vehicle' => 'JKL-7890', 'type' => 'Customer Complaint', 'severity' => 'Low', 'status' => 'Resolved', 'description' => 'Late delivery complaint', 'location' => 'Taguig BGC', 'reported_by' => 'Customer'],
-    ];
-}
-
-function getDriverProfiles() {
-    return [
-        [
-            'id' => 1, 
-            'name' => 'John Smith', 
-            'license' => 'N01-12-123456', 
-            'expiry' => '2026-05-15',
-            'status' => 'Active',
-            'rating' => 4.8,
-            'total_trips' => 328,
-            'total_distance' => 12450,
-            'join_date' => '2022-01-15',
-            'phone' => '0917-123-4567',
-            'email' => 'john.smith@logistics.com',
-            'address' => 'Quezon City, Metro Manila',
-            'emergency_contact' => '0917-111-2222',
-            'blood_type' => 'O+',
-            'incidents' => 2,
-            'safety_score' => 92,
-            'on_time_rate' => 95,
-            'certifications' => ['Defensive Driving', 'First Aid']
-        ],
-        [
-            'id' => 2, 
-            'name' => 'Jane Doe', 
-            'license' => 'N01-12-234567', 
-            'expiry' => '2025-12-20',
-            'status' => 'Active',
-            'rating' => 4.9,
-            'total_trips' => 432,
-            'total_distance' => 15200,
-            'join_date' => '2021-06-10',
-            'phone' => '0917-234-5678',
-            'email' => 'jane.doe@logistics.com',
-            'address' => 'Makati City, Metro Manila',
-            'emergency_contact' => '0917-222-3333',
-            'blood_type' => 'A+',
-            'incidents' => 1,
-            'safety_score' => 96,
-            'on_time_rate' => 98,
-            'certifications' => ['Defensive Driving', 'Hazmat Handling', 'First Aid']
-        ],
-        [
-            'id' => 3, 
-            'name' => 'Mike Johnson', 
-            'license' => 'N01-12-345678', 
-            'expiry' => '2025-08-30',
-            'status' => 'On Leave',
-            'rating' => 3.8,
-            'total_trips' => 275,
-            'total_distance' => 9800,
-            'join_date' => '2022-08-20',
-            'phone' => '0917-345-6789',
-            'email' => 'mike.johnson@logistics.com',
-            'address' => 'Pasig City, Metro Manila',
-            'emergency_contact' => '0917-333-4444',
-            'blood_type' => 'B+',
-            'incidents' => 5,
-            'safety_score' => 78,
-            'on_time_rate' => 82,
-            'certifications' => ['Defensive Driving']
-        ],
-        [
-            'id' => 4, 
-            'name' => 'Sarah Williams', 
-            'license' => 'N01-12-456789', 
-            'expiry' => '2026-03-15',
-            'status' => 'Active',
-            'rating' => 4.7,
-            'total_trips' => 380,
-            'total_distance' => 14100,
-            'join_date' => '2021-11-05',
-            'phone' => '0917-456-7890',
-            'email' => 'sarah.williams@logistics.com',
-            'address' => 'Taguig City, Metro Manila',
-            'emergency_contact' => '0917-444-5555',
-            'blood_type' => 'AB+',
-            'incidents' => 1,
-            'safety_score' => 94,
-            'on_time_rate' => 96,
-            'certifications' => ['Defensive Driving', 'First Aid', 'Heavy Vehicle']
-        ],
-        [
-            'id' => 5, 
-            'name' => 'David Brown', 
-            'license' => 'N01-12-567890', 
-            'expiry' => '2025-11-25',
-            'status' => 'Active',
-            'rating' => 4.5,
-            'total_trips' => 310,
-            'total_distance' => 11500,
-            'join_date' => '2022-03-12',
-            'phone' => '0917-567-8901',
-            'email' => 'david.brown@logistics.com',
-            'address' => 'Mandaluyong City, Metro Manila',
-            'emergency_contact' => '0917-555-6666',
-            'blood_type' => 'O-',
-            'incidents' => 3,
-            'safety_score' => 85,
-            'on_time_rate' => 88,
-            'certifications' => ['Defensive Driving', 'Customer Service']
-        ],
-        [
-            'id' => 6, 
-            'name' => 'Emma Wilson', 
-            'license' => 'N01-12-678901', 
-            'expiry' => '2026-07-10',
-            'status' => 'Active',
-            'rating' => 5.0,
-            'total_trips' => 485,
-            'total_distance' => 18900,
-            'join_date' => '2021-02-20',
-            'phone' => '0917-678-9012',
-            'email' => 'emma.wilson@logistics.com',
-            'address' => 'Manila City, Metro Manila',
-            'emergency_contact' => '0917-666-7777',
-            'blood_type' => 'A-',
-            'incidents' => 0,
-            'safety_score' => 98,
-            'on_time_rate' => 99,
-            'certifications' => ['Defensive Driving', 'First Aid', 'Advanced Driving', 'Customer Service']
-        ],
-    ];
-}
-
-function getTripPerformanceReports() {
-    return [
-        [
-            'id' => 1,
-            'trip_id' => 'TRP-2024-001',
-            'date' => '2024-10-28',
-            'vehicle' => 'ABC-1234',
-            'vehicle_model' => 'Toyota Hiace',
-            'driver' => 'John Smith',
-            'start_location' => 'Manila Warehouse',
-            'end_location' => 'Quezon City Hub',
-            'route' => 'Manila - Quezon City',
-            'planned_distance' => 45,
-            'actual_distance' => 47,
-            'planned_duration' => '2.5 hours',
-            'actual_duration' => '2.8 hours',
-            'fuel_used' => 12.5,
-            'fuel_cost' => 625,
-            'status' => 'On-Time',
-            'on_time_percentage' => 95,
-            'idle_time' => 15,
-            'route_deviation' => 2,
-            'notes' => 'Smooth delivery, minor traffic delay',
-            'departure_time' => '08:00 AM',
-            'arrival_time' => '10:48 AM'
-        ],
-        [
-            'id' => 2,
-            'trip_id' => 'TRP-2024-002',
-            'date' => '2024-10-28',
-            'vehicle' => 'XYZ-5678',
-            'vehicle_model' => 'Isuzu NPR',
-            'driver' => 'Jane Doe',
-            'start_location' => 'Manila Warehouse',
-            'end_location' => 'Makati Business District',
-            'route' => 'Manila - Makati',
-            'planned_distance' => 32,
-            'actual_distance' => 35,
-            'planned_duration' => '1.5 hours',
-            'actual_duration' => '2.2 hours',
-            'fuel_used' => 18.3,
-            'fuel_cost' => 915,
-            'status' => 'Delayed',
-            'on_time_percentage' => 68,
-            'idle_time' => 35,
-            'route_deviation' => 3,
-            'notes' => 'Heavy traffic on EDSA, customer requested wait time',
-            'departure_time' => '09:00 AM',
-            'arrival_time' => '11:13 AM'
-        ],
-        [
-            'id' => 3,
-            'trip_id' => 'TRP-2024-003',
-            'date' => '2024-10-27',
-            'vehicle' => 'DEF-9012',
-            'vehicle_model' => 'Honda CB500',
-            'driver' => 'Mike Johnson',
-            'start_location' => 'Manila Hub',
-            'end_location' => 'BGC Taguig',
-            'route' => 'Manila - Taguig',
-            'planned_distance' => 28,
-            'actual_distance' => 28,
-            'planned_duration' => '1 hour',
-            'actual_duration' => '0.9 hours',
-            'fuel_used' => 3.2,
-            'fuel_cost' => 160,
-            'status' => 'On-Time',
-            'on_time_percentage' => 100,
-            'idle_time' => 5,
-            'route_deviation' => 0,
-            'notes' => 'Early delivery, no issues',
-            'departure_time' => '02:00 PM',
-            'arrival_time' => '02:54 PM'
-        ],
-        [
-            'id' => 4,
-            'trip_id' => 'TRP-2024-004',
-            'date' => '2024-10-27',
-            'vehicle' => 'GHI-3456',
-            'vehicle_model' => 'Mitsubishi Fuso',
-            'driver' => 'David Brown',
-            'start_location' => 'Manila Warehouse',
-            'end_location' => 'Pasig Distribution Center',
-            'route' => 'Manila - Pasig',
-            'planned_distance' => 38,
-            'actual_distance' => 38,
-            'planned_duration' => '2 hours',
-            'actual_duration' => '2.1 hours',
-            'fuel_used' => 22.1,
-            'fuel_cost' => 1105,
-            'status' => 'On-Time',
-            'on_time_percentage' => 95,
-            'idle_time' => 12,
-            'route_deviation' => 0,
-            'notes' => 'On schedule, good performance',
-            'departure_time' => '10:00 AM',
-            'arrival_time' => '12:06 PM'
-        ],
-        [
-            'id' => 5,
-            'trip_id' => 'TRP-2024-005',
-            'date' => '2024-10-26',
-            'vehicle' => 'ABC-1234',
-            'vehicle_model' => 'Toyota Hiace',
-            'driver' => 'Sarah Williams',
-            'start_location' => 'Quezon City Hub',
-            'end_location' => 'Ortigas Center',
-            'route' => 'Quezon City - Ortigas',
-            'planned_distance' => 22,
-            'actual_distance' => 24,
-            'planned_duration' => '1.2 hours',
-            'actual_duration' => '1.8 hours',
-            'fuel_used' => 8.5,
-            'fuel_cost' => 425,
-            'status' => 'Delayed',
-            'on_time_percentage' => 67,
-            'idle_time' => 28,
-            'route_deviation' => 2,
-            'notes' => 'Road construction caused detour',
-            'departure_time' => '03:00 PM',
-            'arrival_time' => '04:48 PM'
-        ],
-        [
-            'id' => 6,
-            'trip_id' => 'TRP-2024-006',
-            'date' => '2024-10-26',
-            'vehicle' => 'JKL-7890',
-            'vehicle_model' => 'Toyota Fortuner',
-            'driver' => 'Emma Wilson',
-            'start_location' => 'Manila Office',
-            'end_location' => 'Manila Bay Area',
-            'route' => 'Manila - Manila Bay',
-            'planned_distance' => 15,
-            'actual_distance' => 0,
-            'planned_duration' => '0.8 hours',
-            'actual_duration' => '0 hours',
-            'fuel_used' => 0,
-            'fuel_cost' => 0,
-            'status' => 'Cancelled',
-            'on_time_percentage' => 0,
-            'idle_time' => 0,
-            'route_deviation' => 0,
-            'notes' => 'Client cancelled meeting last minute',
-            'departure_time' => '-',
-            'arrival_time' => '-'
-        ],
-        [
-            'id' => 7,
-            'trip_id' => 'TRP-2024-007',
-            'date' => '2024-10-25',
-            'vehicle' => 'MNO-2345',
-            'vehicle_model' => 'Suzuki Carry',
-            'driver' => 'John Smith',
-            'start_location' => 'Manila Warehouse',
-            'end_location' => 'Mandaluyong Shopping District',
-            'route' => 'Manila - Mandaluyong',
-            'planned_distance' => 18,
-            'actual_distance' => 18,
-            'planned_duration' => '1 hour',
-            'actual_duration' => '0.95 hours',
-            'fuel_used' => 6.2,
-            'fuel_cost' => 310,
-            'status' => 'On-Time',
-            'on_time_percentage' => 100,
-            'idle_time' => 8,
-            'route_deviation' => 0,
-            'notes' => 'Perfect timing, customer satisfied',
-            'departure_time' => '11:00 AM',
-            'arrival_time' => '11:57 AM'
-        ],
-    ];
-}
-
-function getTripStatistics() {
-    $trips = getTripPerformanceReports();
-    return [
-        'total_trips' => count($trips),
-        'on_time_trips' => count(array_filter($trips, fn($t) => $t['status'] === 'On-Time')),
-        'delayed_trips' => count(array_filter($trips, fn($t) => $t['status'] === 'Delayed')),
-        'cancelled_trips' => count(array_filter($trips, fn($t) => $t['status'] === 'Cancelled')),
-        'total_distance' => array_sum(array_column($trips, 'actual_distance')),
-        'total_fuel' => array_sum(array_column($trips, 'fuel_used')),
-        'avg_on_time_percentage' => round(array_sum(array_column($trips, 'on_time_percentage')) / count($trips)),
-    ];
-}
-
-function getTransportExpenses() {
-    return [
-        ['id' => 1, 'expense_id' => 'EXP-2024-001', 'date' => '2024-10-28', 'category' => 'Fuel', 'amount' => 2500, 'vehicle' => 'ABC-1234', 'driver' => 'John Smith', 'description' => 'Fuel refill at Petron'],
-        ['id' => 2, 'expense_id' => 'EXP-2024-002', 'date' => '2024-10-28', 'category' => 'Maintenance', 'amount' => 5000, 'vehicle' => 'XYZ-5678', 'driver' => 'Jane Doe', 'description' => 'Oil change and filter replacement'],
-        ['id' => 3, 'expense_id' => 'EXP-2024-003', 'date' => '2024-10-27', 'category' => 'Fuel', 'amount' => 3000, 'vehicle' => 'DEF-9012', 'driver' => 'Mike Johnson', 'description' => 'Fuel refill at Shell'],
-        ['id' => 4, 'expense_id' => 'EXP-2024-004', 'date' => '2024-10-27', 'category' => 'Repairs', 'amount' => 8500, 'vehicle' => 'GHI-3456', 'driver' => 'David Brown', 'description' => 'Brake pad replacement'],
-        ['id' => 5, 'expense_id' => 'EXP-2024-005', 'date' => '2024-10-26', 'category' => 'Fuel', 'amount' => 1800, 'vehicle' => 'ABC-1234', 'driver' => 'John Smith', 'description' => 'Fuel refill at Caltex'],
-        ['id' => 6, 'expense_id' => 'EXP-2024-006', 'date' => '2024-10-26', 'category' => 'Licensing', 'amount' => 4200, 'vehicle' => 'JKL-7890', 'driver' => 'Sarah Williams', 'description' => 'Vehicle registration renewal'],
-        ['id' => 7, 'expense_id' => 'EXP-2024-007', 'date' => '2024-10-25', 'category' => 'Maintenance', 'amount' => 3500, 'vehicle' => 'MNO-2345', 'driver' => 'Emma Wilson', 'description' => 'Tire rotation and alignment'],
-        ['id' => 8, 'expense_id' => 'EXP-2024-008', 'date' => '2024-10-25', 'category' => 'Fuel', 'amount' => 2200, 'vehicle' => 'XYZ-5678', 'driver' => 'Jane Doe', 'description' => 'Fuel refill at Petron'],
-        ['id' => 9, 'expense_id' => 'EXP-2024-009', 'date' => '2024-10-24', 'category' => 'Misc', 'amount' => 800, 'vehicle' => 'ABC-1234', 'driver' => 'John Smith', 'description' => 'Parking and toll fees'],
-        ['id' => 10, 'expense_id' => 'EXP-2024-010', 'date' => '2024-10-24', 'category' => 'Repairs', 'amount' => 12000, 'vehicle' => 'GHI-3456', 'driver' => 'David Brown', 'description' => 'Engine diagnostic and repair'],
-        ['id' => 11, 'expense_id' => 'EXP-2024-011', 'date' => '2024-10-23', 'category' => 'Fuel', 'amount' => 2800, 'vehicle' => 'DEF-9012', 'driver' => 'Mike Johnson', 'description' => 'Fuel refill at Shell'],
-        ['id' => 12, 'expense_id' => 'EXP-2024-012', 'date' => '2024-10-23', 'category' => 'Maintenance', 'amount' => 6500, 'vehicle' => 'MNO-2345', 'driver' => 'Emma Wilson', 'description' => 'Air conditioning service'],
-        ['id' => 13, 'expense_id' => 'EXP-2024-013', 'date' => '2024-10-22', 'category' => 'Fuel', 'amount' => 1900, 'vehicle' => 'JKL-7890', 'driver' => 'Sarah Williams', 'description' => 'Fuel refill at Caltex'],
-        ['id' => 14, 'expense_id' => 'EXP-2024-014', 'date' => '2024-10-22', 'category' => 'Misc', 'amount' => 1200, 'vehicle' => 'XYZ-5678', 'driver' => 'Jane Doe', 'description' => 'Car wash and detailing'],
-        ['id' => 15, 'expense_id' => 'EXP-2024-015', 'date' => '2024-10-21', 'category' => 'Repairs', 'amount' => 4500, 'vehicle' => 'ABC-1234', 'driver' => 'John Smith', 'description' => 'Battery replacement'],
-    ];
-}
-
-function getTransportCostSummary() {
-    $expenses = getTransportExpenses();
-    $totalCost = array_sum(array_column($expenses, 'amount'));
-    
-    // Calculate category breakdown
-    $categories = [];
-    foreach ($expenses as $expense) {
-        if (!isset($categories[$expense['category']])) {
-            $categories[$expense['category']] = 0;
-        }
-        $categories[$expense['category']] += $expense['amount'];
+    if (!$stmt) {
+        die("Prepare failed (completeMaintenance): " . $conn->error);
     }
-    
-    // Sort by amount descending
-    arsort($categories);
-    
-    return [
-        'total_cost' => $totalCost,
-        'monthly_change' => -8.5, // Negative means decrease
-        'top_categories' => array_slice($categories, 0, 3, true),
-        'category_breakdown' => $categories,
-        'avg_daily_cost' => round($totalCost / 30),
-    ];
+
+    $stmt->bind_param("i", $id);
+    return $stmt->execute();
 }
 
-function getFuelConsumptionTrends() {
-    return [
-        ['month' => 'May', 'consumption' => 450, 'cost' => 22500],
-        ['month' => 'Jun', 'consumption' => 480, 'cost' => 24000],
-        ['month' => 'Jul', 'consumption' => 420, 'cost' => 21000],
-        ['month' => 'Aug', 'consumption' => 390, 'cost' => 19500],
-        ['month' => 'Sep', 'consumption' => 435, 'cost' => 21750],
-        ['month' => 'Oct', 'consumption' => 410, 'cost' => 20500],
-    ];
+// Get vehicle ID by plate
+function getVehicleIdByPlate($plate) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT id FROM vehicles WHERE plate = ?");
+    $stmt->bind_param("s", $plate);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row['id'] ?? null;
 }
 
-function getVehicleCostComparison() {
-    $vehicles = getVehicles();
-    $expenses = getTransportExpenses();
-    
-    $vehicleCosts = [];
-    foreach ($expenses as $expense) {
-        if (!isset($vehicleCosts[$expense['vehicle']])) {
-            $vehicleCosts[$expense['vehicle']] = 0;
-        }
-        $vehicleCosts[$expense['vehicle']] += $expense['amount'];
+
+// 9️⃣ FUEL EXPENSES
+function getFuelExpenses() {
+    global $conn; // your mysqli connection
+
+    $sql = "SELECT fe.id, fe.vehicle_id, v.plate AS vehicle, fe.date, fe.liters, fe.cost, d.name AS driver
+            FROM fuel_expenses fe
+            LEFT JOIN vehicles v ON fe.vehicle_id = v.id
+            LEFT JOIN drivers d ON fe.driver_id = d.id
+            ORDER BY fe.date DESC";
+
+    $result = $conn->query($sql);
+
+    if (!$result) {
+        die("Query failed: " . $conn->error);
     }
-    
-    $fleetAverage = array_sum($vehicleCosts) / count($vehicleCosts);
-    
-    return [
-        'vehicle_costs' => $vehicleCosts,
-        'fleet_average' => round($fleetAverage),
-    ];
+
+    $expenses = [];
+    while ($row = $result->fetch_assoc()) {
+        $expenses[] = $row;
+    }
+
+    return $expenses;
 }
 
-function getOptimizationInsights() {
-    return [
-        [
-            'type' => 'cost_saving',
-            'title' => 'High Fuel Consumption Detected',
-            'description' => 'Vehicle GHI-3456 has 25% higher fuel consumption than fleet average. Consider maintenance check.',
-            'potential_savings' => 3500,
-            'priority' => 'High',
-            'icon' => 'fa-gas-pump',
-            'color' => 'red'
-        ],
-        [
-            'type' => 'maintenance',
-            'title' => 'Preventive Maintenance Opportunity',
-            'description' => 'Scheduling regular maintenance for ABC-1234 can reduce repair costs by up to 40%.',
-            'potential_savings' => 5000,
-            'priority' => 'Medium',
-            'icon' => 'fa-wrench',
-            'color' => 'yellow'
-        ],
-        [
-            'type' => 'route',
-            'title' => 'Route Optimization Available',
-            'description' => 'Alternative routes for Manila-Quezon City trips can save 15% in fuel costs.',
-            'potential_savings' => 2000,
-            'priority' => 'Medium',
-            'icon' => 'fa-route',
-            'color' => 'blue'
-        ],
-        [
-            'type' => 'efficiency',
-            'title' => 'Driver Training Recommendation',
-            'description' => 'Fuel-efficient driving training for 3 drivers can improve overall efficiency by 12%.',
-            'potential_savings' => 4500,
-            'priority' => 'Low',
-            'icon' => 'fa-graduation-cap',
-            'color' => 'green'
-        ],
-    ];
+// 10️⃣ APPROVALS
+function getApprovals() {
+    global $conn;
+    $sql = "SELECT a.id, v.vehicle, a.type, a.request_date AS date, a.cost AS amount, a.status
+            FROM maintenance_approvals a
+            JOIN vehicles v ON a.vehicle_id = v.id
+            ORDER BY a.request_date DESC";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) die("SQL Prepare Error: " . $conn->error);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 
+function approveRequestById($id) {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE maintenance_approvals SET status = 'Approved' WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    return $stmt->execute();
+}
+
+function rejectRequestById($id, $reason) {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE maintenance_approvals SET status = 'Rejected', rejection_reason = ? WHERE id = ?");
+    $stmt->bind_param("si", $reason, $id);
+    return $stmt->execute();
+}
+
+function insertApprovedMaintenance($approvalId) {
+    global $conn;
+    $stmt = $conn->prepare("
+        INSERT INTO maintenance (vehicle_id, type, date, cost, status, notes)
+        SELECT vehicle_id, type, request_date, cost, 'In Progress', notes
+        FROM maintenance_approvals
+        WHERE id = ?
+    ");
+    $stmt->bind_param("i", $approvalId);
+    return $stmt->execute();
+}
+
+function getComplianceRecords() {
+    global $conn;
+
+    $sql = "
+        SELECT 
+            c.id,
+            v.plate AS vehicle,
+            c.document_type AS document,
+            c.expiry_date AS expiry,
+            CASE
+                WHEN c.expiry_date < CURDATE() THEN 'Expired'
+                WHEN c.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'Expiring Soon'
+                ELSE 'Valid'
+            END AS status
+        FROM compliance_documents c
+        JOIN vehicles v ON c.vehicle_id = v.id
+        ORDER BY c.expiry_date ASC
+    ";
+
+    $result = $conn->query($sql);
+
+    if (!$result) {
+        die("Compliance query failed: " . $conn->error);
+    }
+
+    $records = [];
+    while ($row = $result->fetch_assoc()) {
+        $records[] = $row;
+    }
+
+    return $records;
+}
+
+
+// 11️⃣ NOTIFICATIONS
 function getNotifications() {
-    return [
-        [
-            'id' => 1,
-            'type' => 'maintenance',
-            'title' => 'Maintenance Due',
-            'message' => 'Vehicle ABC-1234 requires oil change within 3 days',
-            'time' => '5 minutes ago',
-            'read' => false,
-            'icon' => 'fa-wrench',
-            'color' => 'yellow',
-            'link' => '/CAPTONES/module_1/maintenance-tracker.php'
-        ],
-        [
-            'id' => 2,
-            'type' => 'incident',
-            'title' => 'New Incident Reported',
-            'message' => 'Driver Mike Johnson reported a minor collision',
-            'time' => '1 hour ago',
-            'read' => false,
-            'icon' => 'fa-exclamation-triangle',
-            'color' => 'red',
-            'link' => '/CAPTONES/module_3/incident-case-management.php'
-        ],
-        [
-            'id' => 3,
-            'type' => 'approval',
-            'title' => 'Pending Approval',
-            'message' => '2 maintenance requests waiting for your approval',
-            'time' => '2 hours ago',
-            'read' => false,
-            'icon' => 'fa-clipboard-check',
-            'color' => 'blue',
-            'link' => '/CAPTONES/module_1/maintenance-approvals.php'
-        ],
-        [
-            'id' => 4,
-            'type' => 'trip',
-            'title' => 'Trip Completed',
-            'message' => 'Trip TRP-2024-015 completed successfully',
-            'time' => '3 hours ago',
-            'read' => true,
-            'icon' => 'fa-check-circle',
-            'color' => 'green',
-            'link' => '/CAPTONES/module_3/trip-performance.php'
-        ],
-        [
-            'id' => 5,
-            'type' => 'fuel',
-            'title' => 'High Fuel Consumption',
-            'message' => 'Vehicle GHI-3456 showing 25% higher consumption',
-            'time' => '5 hours ago',
-            'read' => true,
-            'icon' => 'fa-gas-pump',
-            'color' => 'red',
-            'link' => '/CAPTONES/module_4/transport-cost-optimization.php'
-        ],
-        [
-            'id' => 6,
-            'type' => 'compliance',
-            'title' => 'License Expiring Soon',
-            'message' => 'Vehicle registration for XYZ-5678 expires in 15 days',
-            'time' => '1 day ago',
-            'read' => true,
-            'icon' => 'fa-file-contract',
-            'color' => 'yellow',
-            'link' => '/CAPTONES/module_1/compliance-licensing.php'
-        ],
-        [
-            'id' => 7,
-            'type' => 'driver',
-            'title' => 'Driver Performance Alert',
-            'message' => 'Driver training recommended for 3 drivers',
-            'time' => '1 day ago',
-            'read' => true,
-            'icon' => 'fa-user-check',
-            'color' => 'blue',
-            'link' => '/CAPTONES/module_3/driver-profiles.php'
-        ],
-        [
-            'id' => 8,
-            'type' => 'reservation',
-            'title' => 'New Reservation',
-            'message' => 'Vehicle reservation request for tomorrow',
-            'time' => '2 days ago',
-            'read' => true,
-            'icon' => 'fa-calendar-check',
-            'color' => 'green',
-            'link' => '/CAPTONES/module_2/reservation-management.php'
-        ],
-    ];
+    global $conn;
+    $sql = "SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20";
+    $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
 function getUnreadNotificationCount() {
-    $notifications = getNotifications();
-    return count(array_filter($notifications, fn($n) => !$n['read']));
+    global $conn;
+    $sql = "SELECT COUNT(*) AS unread FROM notifications WHERE read_status = 0";
+    $res = $conn->query($sql);
+    $row = $res ? $res->fetch_assoc() : ['unread' => 0];
+    return $row['unread'];
+}
+
+// 12️⃣ KPI DATA
+function getKPIData() {
+    $vehicles = getVehicles();
+    $drivers = getDrivers();
+    $trips = getTrips();
+
+    $totalVehicles = count($vehicles);
+    $activeVehicles = count(array_filter($vehicles, fn($v) => $v['status'] === 'Active'));
+    $inactiveVehicles = count(array_filter($vehicles, fn($v) => $v['status'] === 'Inactive'));
+
+    // Maintenance due: vehicles with last_maintenance > 6 months ago or never maintained
+    $maintenanceDue = count(array_filter($vehicles, function($v) {
+        if (empty($v['last_maintenance'])) return true; // never maintained
+        $last = new DateTime($v['last_maintenance']);
+        $now = new DateTime();
+        $diff = $now->diff($last)->m + ($now->diff($last)->y * 12); // months difference
+        return $diff >= 6; // due if last maintenance >= 6 months
+    }));
+
+    $availableDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active'));
+
+    return [
+        'total_vehicles'    => $totalVehicles,
+        'active_vehicles'   => $activeVehicles,
+        'inactive_vehicles' => $inactiveVehicles,
+        'maintenance_due'   => $maintenanceDue,
+        'available_drivers' => $availableDrivers,
+        'active_trips'      => count(array_filter($trips, fn($t) => $t['availability'] === 'Assigned')),
+    ];
+}
+
+// 13️⃣ HELPER: STATUS CLASS
+function getStatusClass($status) {
+    return match($status) {
+        'Available', 'Active', 'Completed' => 'bg-green-100 text-green-800',
+        'Assigned', 'On Duty', 'In Progress' => 'bg-blue-100 text-blue-800',
+        'Maintenance', 'Pending', 'Inactive' => 'bg-yellow-100 text-yellow-800',
+        default => 'bg-gray-100 text-gray-800',
+    };
+}
+
+function getVehicleById($id) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT * FROM vehicles WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}
+
+function addFuelExpense($vehicle_id, $date, $liters, $cost, $driver_id) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        INSERT INTO fuel_expenses (vehicle_id, date, liters, cost, driver_id)
+        VALUES (?, ?, ?, ?, ?)
+    ");
+
+    $stmt->bind_param("isddi", $vehicle_id, $date, $liters, $cost, $driver_id);
+    return $stmt->execute();
+}
+
+// DRIVER PROFILES (for Driver Profiles page)
+// Keep this version
+function getDriverProfiles() {
+    global $conn;
+
+    $sql = "
+        SELECT 
+            d.id,
+            d.name,
+            d.license,
+            d.email,
+            d.contact AS phone,
+            d.address,
+            d.emergency_contact,
+            d.blood_type,
+            d.status,
+            d.join_date,
+            d.expiry,
+            d.rating,
+            d.safety_score,
+            d.on_time_rate,
+            d.total_trips,
+            d.total_distance,
+            d.incidents
+        FROM drivers d
+        ORDER BY d.name ASC
+    ";
+
+    $res = $conn->query($sql);
+    $drivers = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+
+    // Temporary certifications
+    foreach ($drivers as &$driver) {
+        $driver['certifications'] = [
+            'Defensive Driving',
+            'First Aid',
+            'Hazard Handling'
+        ];
+    }
+
+    return $drivers;
+}
+
+function getIncidentCases() {
+    global $conn;
+    $sql = "SELECT ic.*, d.name AS driver, v.plate AS vehicle
+            FROM incident_cases ic
+            LEFT JOIN drivers d ON ic.driver_id = d.id
+            LEFT JOIN vehicles v ON ic.vehicle_id = v.id
+            ORDER BY ic.date DESC";
+    $result = $conn->query($sql);
+    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+}
+
+// Fetch all driver behavior data
+function getDriverBehaviorData() {
+    global $conn;
+    $sql = "SELECT db.*, d.name AS driver
+            FROM driver_behavior db
+            JOIN drivers d ON db.driver_id = d.id
+            ORDER BY db.score DESC";
+    $result = $conn->query($sql);
+
+    $data = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $data[] = [
+                'driver' => $row['driver'],
+                'score' => (int)$row['score'],
+                'speeding' => (int)$row['speeding'],
+                'harsh_braking' => (int)$row['harsh_braking'],
+                'idle_time' => (int)$row['idle_time'],
+                'trips' => (int)$row['trips']
+            ];
+        }
+    }
+    return $data;
+}
+
+// Fetch recent behavior incidents
+function getBehaviorIncidents($limit = 5) {
+    global $conn;
+    $sql = "SELECT bi.*, d.name AS driver
+            FROM behavior_incidents bi
+            JOIN drivers d ON bi.driver_id = d.id
+            ORDER BY bi.date DESC
+            LIMIT $limit";
+    $result = $conn->query($sql);
+
+    $data = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $data[] = [
+                'driver' => $row['driver'],
+                'type' => $row['type'],
+                'severity' => $row['severity'],
+                'location' => $row['location'],
+                'speed' => $row['speed'],
+                'date' => $row['date']
+            ];
+        }
+    }
+    return $data;
+}
+
+// Fetch monthly behavior trends
+function getMonthlyBehaviorTrends($months = 6) {
+    global $conn;
+    $sql = "SELECT DATE_FORMAT(month_date, '%b %Y') AS month, total_speeding AS speeding, total_harsh_braking AS harsh_braking
+            FROM monthly_behavior_trends
+            ORDER BY month_date DESC
+            LIMIT $months";
+    $result = $conn->query($sql);
+
+    $data = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
+        }
+    }
+    return array_reverse($data); // So earliest month appears first
+}
+
+// Trip Performance Reports
+function getTripPerformanceReports($startDate = null, $endDate = null) {
+    global $conn;
+
+    $where = [];
+    if ($startDate) $where[] = "t.dispatch_date >= '$startDate'";
+    if ($endDate) $where[] = "t.dispatch_date <= '$endDate'";
+    $whereSql = $where ? "WHERE " . implode(' AND ', $where) : "";
+
+    $sql = "
+        SELECT 
+            t.id AS trip_id,
+            t.trip_code,
+            t.route,
+            t.dispatch_date AS date,
+            t.return_date,
+            t.departure_time,
+            t.arrival_time,
+            t.start_location,
+            t.end_location,
+            t.planned_distance,
+            t.actual_distance,
+            t.planned_duration,
+            t.actual_duration,
+            t.fuel_used,
+            t.fuel_cost,
+            t.status,
+            t.on_time_percentage,
+            t.idle_time,
+            t.route_deviation,
+            t.notes,
+            v.plate AS vehicle,
+            v.model AS vehicle_model,
+            d.name AS driver,
+            d.rating AS driver_rating
+        FROM trips t
+        LEFT JOIN vehicles v ON t.vehicle_id = v.id
+        LEFT JOIN drivers d ON t.driver_id = d.id
+        $whereSql
+        ORDER BY t.dispatch_date DESC
+    ";
+
+    $result = $conn->query($sql);
+    $trips = [];
+
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            // Ensure numeric fields are numbers
+            $row['planned_distance'] = (float)$row['planned_distance'];
+            $row['actual_distance'] = (float)$row['actual_distance'];
+            $row['fuel_used'] = (float)$row['fuel_used'];
+            $row['fuel_cost'] = (float)$row['fuel_cost'];
+            $row['idle_time'] = (int)$row['idle_time'];
+            $row['route_deviation'] = (float)$row['route_deviation'];
+            
+            // Default on_time_percentage if null
+            $row['on_time_percentage'] = $row['on_time_percentage'] ?? ($row['status'] === 'On-Time' ? 100 : 0);
+
+            $trips[] = $row;
+        }
+    }
+
+    return $trips;
+}
+
+// Trip Statistics for KPIs
+function getTripStatistics($startDate = null, $endDate = null) {
+    global $conn;
+
+    // Optional date filter
+    $where = [];
+    if ($startDate) $where[] = "date >= '$startDate'";
+    if ($endDate) $where[] = "date <= '$endDate'";
+    $whereSql = $where ? "WHERE " . implode(' AND ', $where) : "";
+
+    $sql = "
+        SELECT 
+            COUNT(*) AS total_trips,
+            SUM(CASE WHEN status = 'On-Time' THEN 1 ELSE 0 END) AS on_time_trips,
+            SUM(CASE WHEN status = 'Delayed' THEN 1 ELSE 0 END) AS delayed_trips,
+            SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled_trips,
+            SUM(actual_distance) AS total_distance,
+            SUM(fuel_used) AS total_fuel
+        FROM trips
+        $whereSql
+    ";
+
+    $result = $conn->query($sql);
+    if ($result && $row = $result->fetch_assoc()) {
+        // Ensure numeric values
+        return [
+            'total_trips' => (int)$row['total_trips'],
+            'on_time_trips' => (int)$row['on_time_trips'],
+            'delayed_trips' => (int)$row['delayed_trips'],
+            'cancelled_trips' => (int)$row['cancelled_trips'],
+            'total_distance' => (float)$row['total_distance'],
+            'total_fuel' => (float)$row['total_fuel']
+        ];
+    }
+
+    // Default if no trips
+    return [
+        'total_trips' => 0,
+        'on_time_trips' => 0,
+        'delayed_trips' => 0,
+        'cancelled_trips' => 0,
+        'total_distance' => 0,
+        'total_fuel' => 0
+    ];
+}
+
+// 1️⃣ Get all transport expenses
+function getTransportExpenses() {
+    global $conn;
+
+    $sql = "
+        SELECT 
+            e.expense_id,
+            e.date,
+            e.category,
+            e.amount,
+            e.description,
+            COALESCE(v.plate, 'N/A') AS vehicle,
+            COALESCE(d.name, 'Unassigned') AS driver
+        FROM transport_expenses e
+        LEFT JOIN vehicles v ON e.vehicle_id = v.id
+        LEFT JOIN drivers d ON e.driver_id = d.id
+        ORDER BY e.date DESC
+    ";
+
+    $result = $conn->query($sql);
+
+    // 🔴 If query fails, show the REAL SQL error
+    if (!$result) {
+        die("SQL ERROR in getTransportExpenses(): " . $conn->error);
+    }
+
+    $expenses = [];
+    while ($row = $result->fetch_assoc()) {
+        $expenses[] = $row;
+    }
+
+    return $expenses;
+}
+
+function getTransportCostSummary() {
+    global $conn; // mysqli connection
+
+    // Example: Total cost
+    $sqlTotal = "SELECT SUM(amount) AS total_cost FROM transport_expenses";
+    $result = $conn->query($sqlTotal);
+    $totalCost = ($row = $result->fetch_assoc()) ? $row['total_cost'] : 0;
+
+    // Example: Average daily cost
+    $sqlDays = "SELECT COUNT(DISTINCT DATE(date)) AS days FROM transport_expenses";
+    $resultDays = $conn->query($sqlDays);
+    $days = ($row = $resultDays->fetch_assoc()) ? $row['days'] : 1;
+    $avgDailyCost = $days ? $totalCost / $days : 0;
+
+    // Top 3 categories
+    $sqlTop = "SELECT category, SUM(amount) AS total FROM transport_expenses GROUP BY category ORDER BY total DESC LIMIT 3";
+    $resultTop = $conn->query($sqlTop);
+    $topCategories = [];
+    while ($row = $resultTop->fetch_assoc()) {
+        $topCategories[$row['category']] = $row['total'];
+    }
+
+    // Category breakdown for charts
+    $sqlBreakdown = "SELECT category, SUM(amount) AS total FROM transport_expenses GROUP BY category";
+    $resultBreakdown = $conn->query($sqlBreakdown);
+    $categoryBreakdown = [];
+    while ($row = $resultBreakdown->fetch_assoc()) {
+        $categoryBreakdown[$row['category']] = $row['total'];
+    }
+
+    return [
+        'total_cost' => $totalCost,
+        'avg_daily_cost' => $avgDailyCost,
+        'top_categories' => $topCategories,
+        'category_breakdown' => $categoryBreakdown,
+        'monthly_change' => 5 // you can calculate this properly if you have previous month data
+    ];
+}
+
+ // 3️⃣ Get fuel cost trends per vehicle
+function getFuelConsumptionTrends() {
+    global $conn;
+    $sql = "SELECT v.plate, v.vehicle, SUM(fe.liters) AS total_liters, SUM(fe.cost) AS total_cost
+            FROM vehicles v
+            LEFT JOIN fuel_expenses fe ON fe.vehicle_id = v.id
+            GROUP BY v.id
+            ORDER BY total_cost DESC";
+    $result = $conn->query($sql);
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+// 2️⃣ Compare vehicle costs
+function getVehicleCostComparison() {
+    global $conn;
+
+    $sql = "
+        SELECT v.plate, SUM(e.amount) AS total_cost
+        FROM transport_expenses e
+        JOIN vehicles v ON e.vehicle_id = v.id
+        GROUP BY v.plate
+    ";
+
+    $result = $conn->query($sql);
+
+    $vehicleCosts = [];
+    $total = 0;
+    $count = 0;
+
+    while ($row = $result->fetch_assoc()) {
+        $vehicleCosts[$row['plate']] = (float)$row['total_cost'];
+        $total += $row['total_cost'];
+        $count++;
+    }
+
+    $fleetAverage = $count > 0 ? $total / $count : 0;
+
+    return [
+        'vehicle_costs' => $vehicleCosts,
+        'fleet_average' => $fleetAverage
+    ];
+}
+
+
+// 4️⃣ Generate optimization insights
+function getOptimizationInsights() {
+    global $conn;
+
+    // Fleet average expense per vehicle
+    $avgSql = "
+        SELECT AVG(vehicle_total) AS fleet_average
+        FROM (
+            SELECT SUM(amount) AS vehicle_total
+            FROM transport_expenses
+            WHERE vehicle_id IS NOT NULL
+            GROUP BY vehicle_id
+        ) t
+    ";
+    $avgRes = $conn->query($avgSql);
+    $fleetAverage = $avgRes->fetch_assoc()['fleet_average'] ?? 0;
+
+    // Per-vehicle cost
+    $sql = "
+        SELECT v.id, v.plate, v.vehicle,
+               COALESCE(SUM(te.amount),0) AS total_cost
+        FROM vehicles v
+        LEFT JOIN transport_expenses te ON te.vehicle_id = v.id
+        GROUP BY v.id
+        ORDER BY total_cost DESC
+    ";
+    $res = $conn->query($sql);
+    $vehicles = $res->fetch_all(MYSQLI_ASSOC);
+
+    return [
+        'fleet_average' => $fleetAverage,
+        'vehicles' => $vehicles
+    ];
+}
+
+function getReservations() {
+    global $conn;
+
+    $sql = "
+        SELECT
+            r.id,
+            v.plate AS vehicle,
+            v.model,
+            v.type,
+            d.name AS driver,
+            r.reserved_date,
+            r.purpose,
+            r.notes
+        FROM reservations r
+        LEFT JOIN vehicles v ON r.vehicle_id = v.id
+        LEFT JOIN drivers d ON r.driver_id = d.id
+        ORDER BY r.reserved_date DESC
+    ";
+
+    $result = $conn->query($sql);
+
+    if (!$result) {
+        die("SQL Error: " . $conn->error);
+    }
+
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+
+
+// Assign driver
+function assignDriverToReservation($reservationId, $driverId) {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE reservations SET driver_id=? WHERE id=?");
+    $stmt->bind_param("ii", $driverId, $reservationId);
+    return $stmt->execute();
+}
+
+// Update reservation status
+function updateReservationStatus($reservationId, $status) {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE reservations SET status=? WHERE id=?");
+    $stmt->bind_param("si", $status, $reservationId);
+    return $stmt->execute();
+}
+
+// Create new reservation
+function createReservation($data) {
+    global $conn;
+
+    $vehicle_id = $data['vehicle_id'];
+    $driver_id = $data['driver_id'] ?: NULL; // optional
+    $reserved_date = $data['reserved_date'];
+    $purpose = $data['purpose'];
+    $notes = $data['notes'];
+
+    $stmt = $conn->prepare("
+        INSERT INTO reservations 
+        (vehicle_id, driver_id, reserved_date, purpose, notes) 
+        VALUES (?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param("iisss", $vehicle_id, $driver_id, $reserved_date, $purpose, $notes);
+    return $stmt->execute();
 }
 ?>

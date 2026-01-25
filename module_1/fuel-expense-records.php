@@ -1,6 +1,21 @@
 <?php
 include '../includes/functions.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $vehicle_id = $_POST['vehicle_id'];
+    $date       = $_POST['date'];
+    $liters     = $_POST['liters'];
+    $cost       = $_POST['cost'];
+    $driver_id  = $_POST['driver_id'];
+
+    addFuelExpense($vehicle_id, $date, $liters, $cost, $driver_id);
+
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit;
+}
 $expenses = getFuelExpenses();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -191,37 +206,46 @@ $expenses = getFuelExpenses();
                 </button>
             </div>
 
-            <form id="expenseForm" onsubmit="saveExpense(event)" class="p-6">
+            <form id="expenseForm" method="POST" class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                        <select id="vehicleSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                            <option value="">Select Vehicle</option>
-                            <?php foreach (getVehicles() as $vehicle): ?>
-                            <option value="<?php echo $vehicle['plate']; ?>"><?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
+                    <select name="vehicle_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+                        <option value="">Select Vehicle</option>
+                        <?php foreach (getVehicles() as $vehicle): ?>
+                            <option value="<?= $vehicle['id'] ?>">
+                                <?= $vehicle['plate'] ?> - <?= $vehicle['model'] ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Date *</label>
-                        <input type="date" id="expenseDate" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <input name="date" type="date" id="expenseDate" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Liters *</label>
-                        <input type="number" id="liters" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
+                        <input name="liters" type="number" id="liters" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Total Cost (₱) *</label>
-                        <input type="number" id="totalCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
+                        <input name="cost" type="number" id="totalCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Driver *</label>
-                    <input type="text" id="driver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Driver name" required>
+                    <select name="driver_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+                        <option value="">Select Driver</option>
+                        <?php foreach (getDrivers() as $driver): ?>
+                            <option value="<?= $driver['id'] ?>">
+                                <?= $driver['name'] ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="mb-4">
@@ -337,12 +361,6 @@ $expenses = getFuelExpenses();
             document.getElementById('expenseForm').reset();
         }
 
-        function saveExpense(event) {
-            event.preventDefault();
-            alert('Fuel expense saved successfully!');
-            closeExpenseModal();
-            // Reload page or update table here
-        }
 
         function viewExpense(id) {
             // In a real application, fetch expense details via AJAX

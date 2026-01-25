@@ -1,8 +1,22 @@
 <?php
-include '../includes/functions.php';
-$dispatches = getDispatchAssignments();
-$drivers = getAvailableDrivers();
-$schedules = getDispatchSchedules();
+// 1️⃣ Database connection
+$conn = new mysqli('localhost', 'root', '', 'logistics2');
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// 2️⃣ Include functions
+include '../includes/functions.php'; // now all functions are available
+
+// 3️⃣ Fetch data needed by this page
+$dispatches = getTrips();
+$schedules = getTripSchedules();
+$schedules = getTripSchedules();
+$dispatches = getDispatchAssignments(); // or getTripSchedules() if updated
+$drivers = getAvailableDrivers();       // <-- this is required to fix the error
+$schedules = getTripSchedules();        // updated function
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +39,11 @@ $schedules = getDispatchSchedules();
             }
         }
     </script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 </head>
 <body class="bg-gray-50 font-sans">
     <!-- Sidebar -->
@@ -113,16 +132,7 @@ $schedules = getDispatchSchedules();
                         <i class="fas fa-map-marked-alt text-primary-green"></i>
                         Real-Time Vehicle Locations
                     </h3>
-                    <div class="flex items-center justify-center h-80 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <div class="text-center">
-                            <i class="fas fa-map text-6xl text-gray-400 mb-4"></i>
-                            <p class="text-gray-600 font-medium">Map Integration</p>
-                            <p class="text-sm text-gray-500 mt-2">Google Maps / Leaflet.js integration</p>
-                            <button class="mt-4 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all">
-                                <i class="fas fa-map-marker-alt"></i> View Full Map
-                            </button>
-                        </div>
-                    </div>
+                    <div id="map" class="h-80 w-full rounded-lg border-2 border-gray-300"></div>
                 </div>
 
                 <!-- Dispatch Calendar -->
@@ -271,7 +281,7 @@ $schedules = getDispatchSchedules();
     </div>
 
     <!-- Assign Driver Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="assignModal">
+<div class="hidden fixed inset-0 z-[1000] bg-black bg-opacity-50 flex items-center justify-center" id="assignModal">
         <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center p-6 border-b border-gray-200">
                 <h3 class="text-xl font-bold text-gray-900">Assign Driver to Vehicle</h3>
@@ -369,12 +379,10 @@ $schedules = getDispatchSchedules();
         function openAssignModal() {
             document.getElementById('assignForm').reset();
             document.getElementById('assignModal').classList.remove('hidden');
-            document.getElementById('assignModal').classList.add('flex');
         }
 
         function closeAssignModal() {
             document.getElementById('assignModal').classList.add('hidden');
-            document.getElementById('assignModal').classList.remove('flex');
         }
 
         function assignVehicle(id, vehicle) {
@@ -413,6 +421,52 @@ $schedules = getDispatchSchedules();
                 document.getElementById('dispatchDate').value = today;
             }
         });
+
+        // --- LEAFLET MAP SETUP ---
+        const map = L.map('map').setView([14.5995, 120.9842], 12); // Manila coordinates
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Example markers for vehicles
+        const dispatches = <?php echo json_encode($dispatches); ?>;
+
+        // Loop through dispatches and add markers
+            dispatches.forEach(d => {
+                let lat = parseFloat(d.lat);
+                let lng = parseFloat(d.lng);
+
+                if (isNaN(lat)) lat = 14.5995 + Math.random() * 0.05;
+                if (isNaN(lng)) lng = 120.9842 + Math.random() * 0.05;
+
+                const marker = L.marker([lat, lng]).addTo(map);
+                marker.bindPopup(`
+                    <b>${d.vehicle}</b><br>
+                    Driver: ${d.driver ?? 'No driver assigned'}<br>
+                    Status: ${d.availability}
+                `);
+            });
+        function updateVehiclePositions() {
+            fetch('/api/get_locations.php')
+                .then(res => res.json())
+                .then(data => {
+                    map.eachLayer(layer => {
+                        if(layer instanceof L.Marker) map.removeLayer(layer);
+                    });
+                    data.forEach(d => {
+                        L.marker([d.lat, d.lng]).addTo(map)
+                        .bindPopup(`<b>${d.vehicle}</b><br>${d.driver ?? 'No driver assigned'}`);
+                    });
+                });
+        }
+
+        // Refresh every 15 seconds
+        setInterval(updateVehiclePositions, 15000);
+
+
     </script>
 </body>
 </html>

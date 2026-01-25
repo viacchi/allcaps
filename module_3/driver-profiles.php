@@ -1,7 +1,23 @@
 <?php
 include '../includes/functions.php';
 $drivers = getDriverProfiles();
+
+// KPI calculations safely
+$totalDrivers = count($drivers);
+
+// Safely calculate averages
+$avgRating = $totalDrivers > 0 
+    ? array_sum(array_column($drivers, 'rating')) / $totalDrivers 
+    : 0;
+
+$avgSafety = $totalDrivers > 0 
+    ? array_sum(array_column($drivers, 'safety_score')) / $totalDrivers 
+    : 0;
+
+// Count active drivers
+$activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active'));
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +62,14 @@ $drivers = getDriverProfiles();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Total Drivers</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count($drivers); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2">
+                                <?php
+                                echo count($drivers) > 0
+                                    ? number_format(array_sum(array_column($drivers, 'rating')) / count($drivers), 1)
+                                    : '0.0';
+                                ?>
+                                <i class="fas fa-star text-yellow-500 text-lg"></i>
+                            </div>
                             <div class="text-xs font-medium text-blue-600">
                                 <i class="fas fa-users"></i> In fleet
                             </div>
@@ -77,7 +100,7 @@ $drivers = getDriverProfiles();
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Avg Rating</div>
                             <div class="text-3xl font-bold text-gray-900 my-2">
-                                <?php echo number_format(array_sum(array_column($drivers, 'rating')) / count($drivers), 1); ?>
+                                <?php echo number_format($avgRating, 1); ?>
                                 <i class="fas fa-star text-yellow-500 text-lg"></i>
                             </div>
                             <div class="text-xs font-medium text-yellow-600">
@@ -95,7 +118,11 @@ $drivers = getDriverProfiles();
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Avg Safety Score</div>
                             <div class="text-3xl font-bold text-gray-900 my-2">
-                                <?php echo round(array_sum(array_column($drivers, 'safety_score')) / count($drivers)); ?>%
+                                <?php
+                                echo count($drivers) > 0
+                                    ? round(array_sum(array_column($drivers, 'safety_score')) / count($drivers))
+                                    : 0;
+                                ?>%
                             </div>
                             <div class="text-xs font-medium text-blue-600">
                                 <i class="fas fa-shield-alt"></i> Performance

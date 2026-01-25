@@ -1,8 +1,21 @@
 <?php
-// Header component - Top navigation bar
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$user = $_SESSION['user'] ?? null;
+
+if ($user) {
+    $initials = strtoupper(implode('', array_map(fn($n) => $n[0], explode(' ', $user['full_name']))));
+} else {
+    $initials = 'G';
+    $user = ['full_name' => 'Guest', 'role' => '', 'email' => ''];
+}
+
+// Fetch notifications
 $notifications = getNotifications();
 $unreadCount = getUnreadNotificationCount();
 ?>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     /* Hide scrollbar but keep functionality */
@@ -60,11 +73,13 @@ $unreadCount = getUnreadNotificationCount();
             <!-- User Profile -->
             <div class="flex items-center gap-3 cursor-pointer hover:bg-white hover:bg-opacity-10 rounded-lg px-3 py-2 transition-all" onclick="toggleUserMenu()">
                 <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white font-bold">
-                    EM
+                    <?php echo $initials; ?>
                 </div>
                 <div class="hidden md:block">
-                    <div class="text-sm font-semibold text-white">Emer</div>
-                    <div class="text-xs text-white text-opacity-70">Admin</div>
+<div class="text-sm font-semibold text-white">
+    <?php echo htmlspecialchars($user['full_name']); ?>
+</div>
+                    <div class="text-xs text-white text-opacity-70"><?php echo htmlspecialchars($user['role']); ?></div>
                 </div>
                 <i class="fas fa-chevron-down text-white text-opacity-70 text-sm"></i>
             </div>

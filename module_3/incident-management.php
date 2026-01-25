@@ -1,6 +1,70 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+include '../includes/db.php';
 include '../includes/functions.php';
-$incidents = getIncidentCases();
+$incidents = getIncidentCases() ?? [];
+
+if (isset($_POST['close_case_id'])) {
+    $caseId = (int)$_POST['close_case_id'];
+    $resolutionNotes = $_POST['resolution_notes'] ?? '';
+
+    $stmt = $conn->prepare("UPDATE incident_cases SET status='Closed', resolution_notes=? WHERE id=?");
+    $stmt->bind_param("si", $resolutionNotes, $caseId);
+    if ($stmt->execute()) {
+        echo 'closed';
+    } else {
+        echo 'Error: ' . $stmt->error;
+    }
+    exit;
+}
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $driver_id  = (int) $_POST['driver_id'];
+    $vehicle_id = (int) $_POST['vehicle'];
+    $type        = $_POST['type'];
+    $severity    = $_POST['severity'];
+    $date        = date('Y-m-d H:i:s', strtotime($_POST['date'])); // convert datetime-local
+    $reported_by = $_POST['reported_by'];
+    $location    = $_POST['location'];
+    $description = $_POST['description'];
+
+    $case_number = 'CASE-' . date('Ymd-His');
+
+    $sql = "INSERT INTO incident_cases
+        (case_number, driver_id, vehicle_id, type, severity, `date`, reported_by, location, description, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Under Investigation')";
+    $stmt = $conn->prepare($sql);
+
+    if (!$stmt) {
+        die("Prepare failed: " . $conn->error); // ← this will print the MySQL error
+    }
+
+    $stmt->bind_param(
+        "siissssss",
+        $case_number,
+        $driver_id,
+        $vehicle_id,
+        $type,
+        $severity,
+        $date,
+        $reported_by,
+        $location,
+        $description
+    );
+
+    if ($stmt->execute()) {
+        echo 'success';
+    } else {
+        echo 'Execute failed: ' . $stmt->error;
+    }
+}
+
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -357,8 +421,10 @@ $incidents = getIncidentCases();
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Driver *</label>
                         <select id="caseDriver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Driver</option>
-                            <?php foreach (getAvailableDrivers() as $driver): ?>
-                            <option value="<?php echo $driver['name']; ?>"><?php echo $driver['name']; ?></option>
+                            <?php foreach (getDrivers() as $driver): ?>
+                                <option value="<?php echo $driver['id']; ?>">
+                                    <?php echo $driver['name']; ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -367,9 +433,13 @@ $incidents = getIncidentCases();
                         <select id="caseVehicle" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Vehicle</option>
                             <?php foreach (getVehicles() as $vehicle): ?>
-                            <option value="<?php echo $vehicle['plate']; ?>"><?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?></option>
+                                <option value="<?= $vehicle['id'] ?>">
+                                    <?= $vehicle['plate'] ?> - <?= $vehicle['model'] ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
+
+
                     </div>
                 </div>
 
@@ -560,13 +630,6 @@ $incidents = getIncidentCases();
             document.getElementById('addCaseModal').classList.remove('flex');
         }
 
-        function saveNewCase(event) {
-            event.preventDefault();
-            alert('New incident case created successfully!');
-            closeAddCaseModal();
-            location.reload();
-        }
-
         function closeCase(id, caseNumber) {
             currentCaseId = id;
             currentCaseNumber = caseNumber;
@@ -585,16 +648,33 @@ $incidents = getIncidentCases();
             document.getElementById('resolutionNotes').value = '';
         }
 
-        function confirmCloseCase() {
-            const notes = document.getElementById('resolutionNotes').value;
-            if (!notes.trim()) {
-                alert('Please provide resolution notes before closing the case.');
-                return;
-            }
+function confirmCloseCase() {
+    const notes = document.getElementById('resolutionNotes').value;
+    if (!notes.trim()) {
+        alert('Please provide resolution notes before closing the case.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('close_case_id', currentCaseId);
+    formData.append('resolution_notes', notes);
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.text())
+    .then(response => {
+        if (response.trim() === 'closed') {
             alert(`Case ${currentCaseNumber} closed successfully!`);
             closeCloseConfirmModal();
-            location.reload();
+            location.reload(); // now reload will show the case in the Closed table
+        } else {
+            alert('Error closing case: ' + response);
         }
+    })
+    .catch(err => console.error(err));
+}
 
         function updateCase() {
             alert('Case updated successfully!');
@@ -614,6 +694,42 @@ $incidents = getIncidentCases();
         document.getElementById('closeConfirmModal').addEventListener('click', function(e) {
             if (e.target === this) closeCloseConfirmModal();
         });
+
+        function saveNewCase(event) {
+    event.preventDefault();
+
+    const formData = new FormData();
+    formData.append('driver_id', document.getElementById('caseDriver').value);
+    formData.append('vehicle', document.getElementById('caseVehicle').value);
+    formData.append('type', document.getElementById('caseType').value);
+    formData.append('severity', document.getElementById('caseSeverity').value);
+    formData.append('date', document.getElementById('caseDateTime').value);
+    formData.append('reported_by', document.getElementById('caseReportedBy').value);
+    formData.append('location', document.getElementById('caseLocation').value);
+    formData.append('description', document.getElementById('caseDescription').value);
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.text())
+    .then(response => {
+            console.log('Server Response:', response); // ← see exactly what PHP returned
+
+        if (response.trim() === 'success') {
+            alert('New incident case created successfully!');
+            closeAddCaseModal();
+            location.reload();
+        } else {
+            alert(response);
+            console.error(response);
+        }
+    })
+    .catch(err => {
+        alert('Error saving case.');
+        console.error(err);
+    });
+}
     </script>
 </body>
 </html>

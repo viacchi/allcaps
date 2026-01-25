@@ -1,3 +1,23 @@
+<?php
+include 'includes/db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    $fullname = $_POST['fullname'];
+    $phone = $_POST['phonenumber'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+
+    $sql = "INSERT INTO users (full_name, phone_number, email, password)
+            VALUES ('$fullname', '$phone', '$email', '$password')";
+
+    if (mysqli_query($conn, $sql)) {
+        header("Location: index.php?success=1");
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

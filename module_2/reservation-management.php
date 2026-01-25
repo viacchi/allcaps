@@ -1,7 +1,11 @@
 <?php
 include '../includes/functions.php';
+
 $reservations = getReservations();
+
+
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +50,10 @@ $reservations = getReservations();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Pending Dispatch</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => $r['status'] === 'Pending Dispatch')); ?></div>
+
+                            <div class="text-3xl font-bold text-gray-900 my-2">
+                                <?php echo count(array_filter($reservations, fn($r) => ($r['status'] ?? '') === 'Pending Dispatch')); ?>
+                            </div>
                             <div class="text-xs font-medium text-blue-600">
                                 <i class="fas fa-clock"></i> Awaiting assignment
                             </div>
@@ -61,7 +68,7 @@ $reservations = getReservations();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Assigned</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => $r['status'] === 'Assigned')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => ($r['status'] ?? '') === 'Assigned')); ?></div>
                             <div class="text-xs font-medium text-yellow-600">
                                 <i class="fas fa-user-check"></i> Ready to depart
                             </div>
@@ -76,7 +83,7 @@ $reservations = getReservations();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">In Use</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => $r['status'] === 'In Use')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => ($r['status'] ?? '') === 'In Use')); ?></div>
                             <div class="text-xs font-medium text-green-600">
                                 <i class="fas fa-route"></i> Currently active
                             </div>
@@ -91,7 +98,7 @@ $reservations = getReservations();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Completed</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => $r['status'] === 'Completed')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => ($r['status'] ?? '') === 'Completed')); ?></div>
                             <div class="text-xs font-medium text-green-600">
                                 <i class="fas fa-check-circle"></i> Successfully done
                             </div>
@@ -106,7 +113,7 @@ $reservations = getReservations();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Cancelled</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => $r['status'] === 'Cancelled')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($reservations, fn($r) => ($r['status'] ?? '') === 'Cancelled')); ?></div>
                             <div class="text-xs font-medium text-red-600">
                                 <i class="fas fa-ban"></i> Not proceeded
                             </div>
@@ -187,12 +194,16 @@ $reservations = getReservations();
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-5 py-4 text-sm">
-                                    <div class="text-gray-900"><?php echo date('M d, Y', strtotime($reservation['date'])); ?></div>
-                                    <div class="text-xs text-gray-500"><?php echo $reservation['time']; ?></div>
+                                <div class="text-gray-900">
+                                    <?php echo date('M d, Y', strtotime($reservation['reserved_date'])); ?>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    <?php echo $reservation['purpose']; ?>
+                                </div>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-700">
                                     <i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>
-                                    <?php echo $reservation['destination']; ?>
+                                    <?php echo $reservation['notes']; ?>
                                 </td>
                                 <td class="px-5 py-4 text-sm">
                                     <?php
@@ -204,8 +215,10 @@ $reservations = getReservations();
                                         'Cancelled' => 'bg-red-100 text-red-800'
                                     ];
                                     ?>
-                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColors[$reservation['status']]; ?>">
-                                        <?php echo $reservation['status']; ?>
+                                    <?php $status = $reservation['status'] ?? 'Pending Dispatch'; ?>
+
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColors[$status]; ?>">
+                                        <?php echo $status; ?>
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-sm">
@@ -213,16 +226,17 @@ $reservations = getReservations();
                                         <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" onclick="viewDetails(<?php echo $reservation['id']; ?>)">
                                             <i class="fas fa-eye"></i> View
                                         </button>
-                                        <?php if ($reservation['status'] === 'Pending Dispatch'): ?>
+                                        <?php 
+                                        if ($status === 'Pending Dispatch'): ?>
                                             <button class="px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all inline-flex items-center gap-1.5" onclick="assignDriver(<?php echo $reservation['id']; ?>)">
                                                 <i class="fas fa-user-plus"></i> Assign
                                             </button>
-                                        <?php elseif ($reservation['status'] === 'In Use'): ?>
+                                        <?php elseif ($status === 'In Use'): ?>
                                             <button class="px-3 py-1.5 bg-green-600 text-white rounded-md text-xs font-semibold hover:bg-green-700 transition-all inline-flex items-center gap-1.5" onclick="markCompleted(<?php echo $reservation['id']; ?>)">
                                                 <i class="fas fa-check"></i> Complete
                                             </button>
                                         <?php endif; ?>
-                                        <?php if (in_array($reservation['status'], ['Pending Dispatch', 'Assigned'])): ?>
+                                        <?php if (in_array($status, ['Pending Dispatch', 'Assigned'])): ?>
                                             <button class="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-semibold hover:bg-red-600 transition-all inline-flex items-center gap-1.5" onclick="cancelReservation(<?php echo $reservation['id']; ?>)">
                                                 <i class="fas fa-times"></i> Cancel
                                             </button>
@@ -239,7 +253,7 @@ $reservations = getReservations();
     </div>
 
     <!-- Reservation Details Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="detailsModal">
+    <div class="hidden flex fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="detailsModal">
         <div class="bg-white rounded-lg w-11/12 max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center p-6 border-b border-gray-200">
                 <h3 class="text-xl font-bold text-gray-900">Reservation Details</h3>
@@ -395,15 +409,15 @@ $reservations = getReservations();
                 </button>
             </div>
 
-            <form id="assignForm" onsubmit="saveDriverAssignment(event)" class="p-6">
+            <form id="assignForm" method="POST" action="reservation-management.php" class="p-6">
                 <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p class="text-sm text-blue-900"><strong>Reservation ID:</strong> <span id="assignReservationId">#RES-0001</span></p>
+                    <p type="hidden" name="reservation_id" id="assignReservationIdInput" class="text-sm text-blue-900"><strong>Reservation ID:</strong> <span id="assignReservationId">#RES-0001</span></p>
                     <p class="text-sm text-blue-900"><strong>Vehicle:</strong> <span id="assignVehicle">ABC-1234</span></p>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Select Driver *</label>
-                    <select id="driverSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                    <select name="driver_id" id="driverSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                         <option value="">Choose available driver</option>
                         <?php foreach (getAvailableDrivers() as $driver): ?>
                             <?php if ($driver['status'] === 'Available'): ?>
@@ -416,14 +430,14 @@ $reservations = getReservations();
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Notify Driver</label>
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="notifyDriver" checked class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                        <input type="checkbox" name="notify_driver" id="notifyDriver" checked class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
                         <label for="notifyDriver" class="text-sm text-gray-700">Send automatic notification to assigned driver via SMS/Email</label>
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Additional Instructions</label>
-                    <textarea id="instructions" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Any special instructions for the driver..." rows="3"></textarea>
+                    <textarea name="instructions" id="instructions" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Any special instructions for the driver..." rows="3"></textarea>
                 </div>
 
                 <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
@@ -452,22 +466,24 @@ $reservations = getReservations();
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                        <select id="newVehicle" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <select id="newVehicle" required>
                             <option value="">Select Vehicle</option>
                             <?php foreach (getVehicles() as $vehicle): ?>
                                 <?php if ($vehicle['status'] === 'Active'): ?>
-                                <option value="<?php echo $vehicle['plate']; ?>"><?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?> (<?php echo $vehicle['type']; ?>)</option>
+                                <option value="<?php echo $vehicle['id']; ?>">
+                                    <?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?> (<?php echo $vehicle['type']; ?>)
+                                </option>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Assign Driver (Optional)</label>
-                        <select id="newDriver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <select id="newDriver">
                             <option value="">Assign later</option>
                             <?php foreach (getAvailableDrivers() as $driver): ?>
                                 <?php if ($driver['status'] === 'Available'): ?>
-                                <option value="<?php echo $driver['name']; ?>"><?php echo $driver['name']; ?></option>
+                                <option value="<?php echo $driver['id']; ?>"><?php echo $driver['name']; ?></option>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </select>
@@ -586,17 +602,21 @@ $reservations = getReservations();
         }
 
         function viewDetails(id) {
-            // In a real application, fetch data via AJAX
             <?php foreach ($reservations as $reservation): ?>
                 if (id === <?php echo $reservation['id']; ?>) {
                     document.getElementById('detailVehicle').textContent = '<?php echo $reservation['vehicle']; ?>';
                     document.getElementById('detailModel').textContent = '<?php echo $reservation['model']; ?>';
                     document.getElementById('detailType').textContent = '<?php echo $reservation['type']; ?>';
                     document.getElementById('detailDriver').textContent = '<?php echo $reservation['driver'] ?? 'Not assigned'; ?>';
-                    document.getElementById('detailDate').textContent = '<?php echo date('M d, Y', strtotime($reservation['date'])); ?>';
-                    document.getElementById('detailTime').textContent = '<?php echo $reservation['time']; ?>';
-                    document.getElementById('detailDuration').textContent = '<?php echo $reservation['duration']; ?>';
-                    document.getElementById('detailDestination').textContent = '<?php echo $reservation['destination']; ?>';
+                    document.getElementById('detailDate').textContent =
+                        '<?php echo date('M d, Y', strtotime($reservation['reserved_date'])); ?>';
+
+                    document.getElementById('detailTime').textContent = '-';
+
+                    document.getElementById('detailDestination').textContent =
+                        '<?php echo $reservation['notes']; ?>';
+
+                    document.getElementById('detailDuration').textContent = '-';
                     document.getElementById('detailPurpose').textContent = '<?php echo $reservation['purpose']; ?>';
                     document.getElementById('detailStatus').textContent = '<?php echo $reservation['status']; ?>';
                 }
@@ -684,6 +704,8 @@ $reservations = getReservations();
         }
 
         function openNewReservationModal() {
+                console.log("Button clicked!"); // <-- check console
+
             document.getElementById('newReservationForm').reset();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('newDate').value = today;
@@ -694,14 +716,6 @@ $reservations = getReservations();
         function closeNewReservationModal() {
             document.getElementById('newReservationModal').classList.add('hidden');
             document.getElementById('newReservationModal').classList.remove('flex');
-        }
-
-        function saveNewReservation(event) {
-            event.preventDefault();
-            alert('New reservation created successfully!');
-            closeNewReservationModal();
-            // Reload or update table here
-            location.reload();
         }
 
         // Close modals when clicking outside
@@ -720,6 +734,34 @@ $reservations = getReservations();
         document.getElementById('confirmModal').addEventListener('click', function(e) {
             if (e.target === this) closeConfirmModal();
         });
+
+
+// Create new reservation
+function saveNewReservation(event) {
+    event.preventDefault();
+
+    const vehicleId = document.getElementById('newVehicle').value;
+    const driverId = document.getElementById('newDriver').value;
+    const reservedDate = document.getElementById('newDate').value;
+    const time = document.getElementById('newTime').value;
+    const destination = document.getElementById('newDestination').value;
+    const duration = document.getElementById('newDuration').value;
+    const purpose = document.getElementById('newPurpose').value;
+    const notes = document.getElementById('newNotes').value;
+
+    fetch('', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `action=create_reservation&vehicle=${vehicle}&driver_id=${driverId}&date=${date}&time=${time}&destination=${destination}&duration=${duration}&purpose=${purpose}&notes=${encodeURIComponent(notes)}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) location.reload();
+    });
+
+    closeNewReservationModal();
+}
+
     </script>
 </body>
 </html>

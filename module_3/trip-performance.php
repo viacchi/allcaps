@@ -4,6 +4,47 @@ $trips = getTripPerformanceReports();
 $stats = getTripStatistics();
 $drivers = getAvailableDrivers();
 $vehicles = getVehicles();
+
+// Initialize arrays
+$driverLabels = [];
+$driverDurations = [];
+
+// Calculate average duration per driver
+$driverTotals = []; // driver => total duration in minutes
+$driverCounts = []; // driver => number of trips
+
+foreach ($trips as $trip) {
+    $hours = 0;
+    $minutes = 0;
+
+    if (!empty($trip['actual_duration']) && strpos($trip['actual_duration'], ':') !== false) {
+        $parts = explode(':', $trip['actual_duration']);
+        $hours = (int)$parts[0];
+        $minutes = isset($parts[1]) ? (int)$parts[1] : 0;
+    }
+
+    $durationMins = ($hours * 60) + $minutes;
+
+    if (!isset($driverTotals[$trip['driver']])) {
+        $driverTotals[$trip['driver']] = 0;
+        $driverCounts[$trip['driver']] = 0;
+    }
+
+    $driverTotals[$trip['driver']] += $durationMins;
+    $driverCounts[$trip['driver']] += 1;
+}
+
+// Prepare arrays for Chart.js
+foreach ($driverTotals as $driver => $totalMins) {
+    $avgMins = $totalMins / $driverCounts[$driver];
+    $driverLabels[] = $driver;
+    $driverDurations[] = round($avgMins / 60, 2); // convert back to hours
+}
+
+// Convert to JSON for JS
+$driverLabelsJson = json_encode($driverLabels);
+$driverDurationsJson = json_encode($driverDurations);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -227,6 +268,7 @@ $vehicles = getVehicles();
                         <tbody id="tableBody">
                             <?php foreach ($trips as $trip): 
                                 $statusColors = [
+                                    'Pending' => 'bg-gray-100 text-gray-800',
                                     'On-Time' => 'bg-green-100 text-green-800',
                                     'Delayed' => 'bg-yellow-100 text-yellow-800',
                                     'Cancelled' => 'bg-red-100 text-red-800'
@@ -766,6 +808,31 @@ $vehicles = getVehicles();
             document.getElementById('filterDateStart').value = firstDay.toISOString().split('T')[0];
             document.getElementById('filterDateEnd').value = lastDay.toISOString().split('T')[0];
         });
+
+        const durationCtx = document.getElementById('durationChart').getContext('2d');
+new Chart(durationCtx, {
+    type: 'bar',
+    data: {
+        labels: <?php echo $driverLabelsJson; ?>,
+        datasets: [{
+            label: 'Hours',
+            data: <?php echo $driverDurationsJson; ?>,
+            backgroundColor: '#2D7A5C'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Hours' }
+            }
+        }
+    }
+});
+
     </script>
 </body>
 </html>

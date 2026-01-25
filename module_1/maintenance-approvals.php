@@ -1,7 +1,33 @@
 <?php
 include '../includes/functions.php';
+
+// Handle approve/reject actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $id = intval($_POST['id'] ?? 0);
+
+    if ($id) {
+        if ($action === 'approve') {
+            approveRequestById($id); // make sure this exists in functions.php
+            echo "<script>alert('Request #$id approved successfully!'); window.location.href='".$_SERVER['PHP_SELF']."';</script>";
+            exit;
+        }
+        if ($action === 'reject') {
+            $reason = trim($_POST['reason'] ?? '');
+            if (!$reason) {
+                echo "<script>alert('Please provide a reason for rejection'); window.history.back();</script>";
+                exit;
+            }
+            rejectRequestById($id, $reason); // make sure this exists in functions.php
+            echo "<script>alert('Request #$id rejected successfully!'); window.location.href='".$_SERVER['PHP_SELF']."';</script>";
+            exit;
+        }
+    }
+}
+
 $approvals = getApprovals();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -299,7 +325,13 @@ $approvals = getApprovals();
                 </div>
             </div>
             <div class="flex gap-3">
-                <button class="flex-1 px-4 py-2 bg-green-500 text-white rounded-md text-sm font-semibold hover:bg-green-600 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="confirmApproval()">
+                <form method="POST">
+                    <input type="hidden" name="action" value="approve">
+                    <input type="hidden" name="id" id="approveRequestId" value="">
+                    <button type="submit" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-md text-sm font-semibold hover:bg-green-600 transition-all duration-300 inline-flex items-center justify-center gap-2">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                </form>
                     <i class="fas fa-check"></i> Approve
                 </button>
                 <button class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeApproveModal()">
@@ -324,7 +356,14 @@ $approvals = getApprovals();
                 <textarea id="rejectionReason" rows="3" placeholder="Please provide a reason..." class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent"></textarea>
             </div>
             <div class="flex gap-3">
-                <button class="flex-1 px-4 py-2 bg-red-500 text-white rounded-md text-sm font-semibold hover:bg-red-600 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="confirmRejection()">
+                <form method="POST">
+                    <input type="hidden" name="action" value="reject">
+                    <input type="hidden" name="id" id="rejectRequestId" value="">
+                    <textarea name="reason" id="rejectionReason" rows="3" placeholder="Please provide a reason..." class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent"></textarea>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-md text-sm font-semibold hover:bg-red-600 transition-all duration-300 inline-flex items-center justify-center gap-2">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </form>
                     <i class="fas fa-times"></i> Reject
                 </button>
                 <button class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeRejectModal()">
@@ -367,11 +406,11 @@ $approvals = getApprovals();
             document.getElementById('detailsModal').classList.remove('flex');
         }
 
-        function approveRequest(id) {
-            currentRequestId = id;
-            document.getElementById('approveModal').classList.remove('hidden');
-            document.getElementById('approveModal').classList.add('flex');
-        }
+function approveRequest(id) {
+    document.getElementById('approveRequestId').value = id;
+    document.getElementById('approveModal').classList.remove('hidden');
+    document.getElementById('approveModal').classList.add('flex');
+}
 
         function closeApproveModal() {
             document.getElementById('approveModal').classList.add('hidden');
@@ -384,11 +423,11 @@ $approvals = getApprovals();
             location.reload();
         }
 
-        function rejectRequest(id) {
-            currentRequestId = id;
-            document.getElementById('rejectModal').classList.remove('hidden');
-            document.getElementById('rejectModal').classList.add('flex');
-        }
+function rejectRequest(id) {
+    document.getElementById('rejectRequestId').value = id;
+    document.getElementById('rejectModal').classList.remove('hidden');
+    document.getElementById('rejectModal').classList.add('flex');
+}
 
         function closeRejectModal() {
             document.getElementById('rejectModal').classList.add('hidden');

@@ -1,4 +1,8 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Sidebar component - Left navigation with collapsible modules
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 ?>
@@ -57,22 +61,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                     <span class="text-sm">Fuel & Expense Records</span>
                 </a>
                 
-                <!-- PAGE #4 -->
-                <a href="/CAPTONES/module_1/maintenance-approvals.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'maintenance-approvals' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
-                    <i class="fas fa-check-circle text-sm"></i>
-                    <span class="text-sm">Maintenance Approvals</span>
-                </a>
                 
                 <!-- PAGE #5 -->
                 <a href="/CAPTONES/module_1/compliance-licensing.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'compliance-licensing' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-file-contract text-sm"></i>
                     <span class="text-sm">Compliance & Licensing</span>
-                </a>
-                
-                <!-- PAGE #6 -->
-                <a href="/CAPTONES/module_1/predictive-maintenance.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'predictive-maintenance' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
-                    <i class="fas fa-brain text-sm"></i>
-                    <span class="text-sm">Predictive Maintenance</span>
                 </a>
             </div>
         </div>
@@ -99,11 +92,6 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                         <span class="text-sm">Reservation Management</span>
                     </a>
                     
-                    <!-- PAGE #9 -->
-                    <a href="/CAPTONES/module_2/availability-calendar.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'availability-calendar' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
-                        <i class="fas fa-calendar-alt text-sm"></i>
-                        <span class="text-sm">Availability Calendar</span>
-                    </a>
                 </div>
             </div>
 

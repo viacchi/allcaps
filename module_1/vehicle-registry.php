@@ -1,7 +1,32 @@
 <?php
 include '../includes/functions.php';
+
+// Handle vehicle deactivation
+if (isset($_POST['deactivate_id'])) {
+    deactivateVehicle($_POST['deactivate_id']);
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit;
+}
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = $_POST['id'] ?? null;
+
+    if ($id) {
+        updateVehicle($_POST); // UPDATE
+    } else {
+        addVehicle($_POST); // INSERT
+    }
+
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit;
+}
+
+
+
 $vehicles = getVehicles();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -163,7 +188,8 @@ $vehicles = getVehicles();
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($vehicle['last_maintenance'])); ?></td>
                                 <td class="px-5 py-4 text-sm">
                                     <div class="flex gap-2">
-                                        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" onclick="editVehicle(<?php echo $vehicle['id']; ?>)">
+                                        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold"
+                                            onclick='editVehicle(<?php echo json_encode($vehicle); ?>)'>
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
                                         <button class="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-semibold hover:bg-red-600 transition-all inline-flex items-center gap-1.5" onclick="confirmDeactivateVehicle(<?php echo $vehicle['id']; ?>)">
@@ -190,22 +216,23 @@ $vehicles = getVehicles();
                 </button>
             </div>
 
-            <form id="vehicleForm" onsubmit="saveVehicle(event)">
+            <form id="vehicleForm"  method="POST">
+                <input type="hidden" id="vehicleId" name="id">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Plate Number *</label>
-                    <input type="text" id="plateNumber" required placeholder="e.g., ABC-1234" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                    <input type="text" id="plateNumber" name="plate" required placeholder="e.g., ABC-1234" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Model *</label>
-                        <input type="text" id="model" required placeholder="e.g., Toyota Hiace" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <input type="text" id="model" name="model" required placeholder="e.g., Toyota Hiace" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle Type *</label>
-                        <select id="vehicleType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <select id="vehicleType" name="type" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                             <option value="">Select Type</option>
                             <option value="Truck">Truck</option>
                             <option value="Van">Van</option>
@@ -215,14 +242,14 @@ $vehicles = getVehicles();
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Year *</label>
-                        <input type="number" id="year" required placeholder="e.g., 2023" min="1990" max="2099" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <input type="number" id="year" name="year" required placeholder="e.g., 2023" min="1990" max="2099" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
-                        <select id="status" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <select id="status" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                             <option value="Active">Active</option>
                             <option value="Inactive">Inactive</option>
                             <option value="Maintenance">Maintenance</option>
@@ -230,7 +257,7 @@ $vehicles = getVehicles();
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Last Maintenance Date</label>
-                        <input type="date" id="lastMaintenance" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <input type="date" id="lastMaintenance" name="last_maintenance" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
                     </div>
                 </div>
 
@@ -269,9 +296,13 @@ $vehicles = getVehicles();
                 <p id="confirmMessage">Are you sure you want to deactivate this vehicle?</p>
             </div>
             <div class="flex gap-3">
-                <button class="flex-1 px-4 py-2 bg-red-500 text-white rounded-md text-sm font-semibold hover:bg-red-600 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="confirmDeactivate()">
-                    <i class="fas fa-check"></i> Confirm
-                </button>
+                <form method="POST" class="flex-1">
+                    <input type="hidden" name="deactivate_id" id="deactivateId">
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-red-500 text-white rounded-md text-sm font-semibold hover:bg-red-600 transition-all duration-300 inline-flex items-center justify-center gap-2">
+                        <i class="fas fa-check"></i> Confirm
+                    </button>
+                </form>
                 <button class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeConfirmModal()">
                     <i class="fas fa-times"></i> Cancel
                 </button>
@@ -310,19 +341,15 @@ $vehicles = getVehicles();
 
         function openAddVehicleModal() {
             editingId = null;
+            document.getElementById('vehicleId').value = '';
             document.getElementById('modalTitle').textContent = 'Add New Vehicle';
             document.getElementById('vehicleForm').reset();
+
             document.getElementById('vehicleModal').classList.remove('hidden');
             document.getElementById('vehicleModal').classList.add('flex');
         }
 
-        function editVehicle(id) {
-            editingId = id;
-            document.getElementById('modalTitle').textContent = 'Edit Vehicle';
-            // You would populate the form with vehicle data here
-            document.getElementById('vehicleModal').classList.remove('hidden');
-            document.getElementById('vehicleModal').classList.add('flex');
-        }
+
 
         function closeVehicleModal() {
             document.getElementById('vehicleModal').classList.add('hidden');
@@ -332,25 +359,29 @@ $vehicles = getVehicles();
 
         function saveVehicle(event) {
             event.preventDefault();
-            
-            // Here you would save the vehicle data
-            alert(editingId ? 'Vehicle updated successfully!' : 'Vehicle added successfully!');
+
+            const id = document.getElementById('vehicleId').value;
+            const plate = document.getElementById('plateNumber').value;
+            const model = document.getElementById('model').value;
+
+            if (id) {
+                alert('Vehicle updated successfully!\nID: ' + id);
+                // TODO: UPDATE vehicles SET ... WHERE id = id
+            } else {
+                alert('Vehicle added successfully!');
+                // TODO: INSERT INTO vehicles (...)
+            }
+
             closeVehicleModal();
-            // Reload or update table here
         }
 
         function confirmDeactivateVehicle(id) {
-            deactivatingId = id;
-            document.getElementById('confirmMessage').textContent = 'Are you sure you want to deactivate this vehicle?';
+            document.getElementById('deactivateId').value = id;
+            document.getElementById('confirmMessage').textContent =
+                'Are you sure you want to deactivate this vehicle?';
+
             document.getElementById('confirmModal').classList.remove('hidden');
             document.getElementById('confirmModal').classList.add('flex');
-        }
-
-        function confirmDeactivate() {
-            // Here you would deactivate the vehicle
-            alert('Vehicle deactivated successfully!');
-            closeConfirmModal();
-            // Reload or update table here
         }
 
         function closeConfirmModal() {
@@ -371,6 +402,25 @@ $vehicles = getVehicles();
                 closeConfirmModal();
             }
         });
+
+
+        function editVehicle(vehicle) {
+            document.getElementById('vehicleId').value = vehicle.id;
+            editingId = vehicle.id;
+
+            document.getElementById('modalTitle').textContent = 'Edit Vehicle';
+
+            document.getElementById('plateNumber').value = vehicle.plate;
+            document.getElementById('model').value = vehicle.model;
+            document.getElementById('vehicleType').value = vehicle.type;
+            document.getElementById('year').value = vehicle.year;
+            document.getElementById('status').value = vehicle.status;
+            document.getElementById('lastMaintenance').value = vehicle.last_maintenance;
+
+            document.getElementById('vehicleModal').classList.remove('hidden');
+            document.getElementById('vehicleModal').classList.add('flex');
+        }
+
     </script>
 </body>
 </html>

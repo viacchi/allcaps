@@ -221,7 +221,7 @@ $vehicles = getVehicles();
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Vehicle</label>
-                        <select id="filterVehicle" onchange="filterTable()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                        <select id="filterVehicle" onchange="filterExpenses()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
                             <option value="">All Vehicles</option>
                             <?php foreach ($vehicles as $vehicle): ?>
                             <option value="<?php echo $vehicle['plate']; ?>"><?php echo $vehicle['plate']; ?></option>
@@ -230,7 +230,7 @@ $vehicles = getVehicles();
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Driver</label>
-                        <select id="filterDriver" onchange="filterTable()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                        <select id="filterDriver" onchange="filterExpenses()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
                             <option value="">All Drivers</option>
                             <?php foreach ($drivers as $driver): ?>
                             <option value="<?php echo $driver['name']; ?>"><?php echo $driver['name']; ?></option>
@@ -239,18 +239,18 @@ $vehicles = getVehicles();
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Category</label>
-                        <select id="filterCategory" onchange="filterTable()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                        <select id="filterCategory" onchange="filterExpenses()" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
                             <option value="">All Categories</option>
                             <option value="Fuel">Fuel</option>
                             <option value="Maintenance">Maintenance</option>
                             <option value="Repairs">Repairs</option>
                             <option value="Licensing">Licensing</option>
-                            <option value="Misc">Miscellaneous</option>
+                            <option value="Misc">Misc</option>
                         </select>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-3">
-                    <input type="text" id="searchInput" placeholder="Search expenses..." onkeyup="filterTable()" class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm">
+                    <input type="text" id="searchInput" placeholder="Search expenses..." onkeyup="filterExpenses()" class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm">
                     <button class="px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all inline-flex items-center gap-2" onclick="applyFilters()">
                         <i class="fas fa-search"></i> Apply Filters
                     </button>
@@ -304,7 +304,13 @@ $vehicles = getVehicles();
                                     'Misc' => 'bg-purple-100 text-purple-800'
                                 ];
                             ?>
-                            <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                            <tr
+                            class="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                            data-date="<?= $expense['date'] ?>"
+                            data-category="<?= strtolower($expense['category']) ?>"
+                            data-vehicle="<?= strtolower($expense['vehicle'] ?? '') ?>"
+                            data-driver="<?= strtolower($expense['driver'] ?? '') ?>"
+                            >
                                 <td class="px-5 py-4 text-sm font-semibold text-primary-green"><?php echo $expense['expense_id']; ?></td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($expense['date'])); ?></td>
                                 <td class="px-5 py-4 text-sm">
@@ -317,9 +323,12 @@ $vehicles = getVehicles();
                                 <td class="px-5 py-4 text-sm">
                                     <div class="flex items-center gap-2">
                                         <div class="w-8 h-8 bg-primary-green rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                            <?php echo strtoupper(substr($expense['driver'], 0, 2)); ?>
+                                            <?php
+                                            $driverName = $expense['driver'] ?? 'N/A';
+                                            echo strtoupper(substr($driverName, 0, 2));
+                                            ?>
                                         </div>
-                                        <span class="text-gray-900"><?php echo $expense['driver']; ?></span>
+                                            <span class="text-gray-900"><?php echo $expense['driver'] ?? 'Unassigned'; ?></span>
                                     </div>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-600"><?php echo $expense['description']; ?></td>
@@ -665,28 +674,7 @@ $vehicles = getVehicles();
             }
         });
 
-        function filterTable() {
-            const searchInput = document.getElementById('searchInput').value.toLowerCase();
-            const vehicleFilter = document.getElementById('filterVehicle').value;
-            const driverFilter = document.getElementById('filterDriver').value;
-            const categoryFilter = document.getElementById('filterCategory').value;
 
-            const rows = document.querySelectorAll('#tableBody tr');
-            rows.forEach(row => {
-                const expenseId = row.cells[0].textContent.toLowerCase();
-                const vehicle = row.cells[4].textContent;
-                const driver = row.cells[5].textContent;
-                const category = row.cells[2].textContent.trim();
-                const description = row.cells[6].textContent.toLowerCase();
-
-                const matchesSearch = expenseId.includes(searchInput) || description.includes(searchInput);
-                const matchesVehicle = !vehicleFilter || vehicle.includes(vehicleFilter);
-                const matchesDriver = !driverFilter || driver.includes(driverFilter);
-                const matchesCategory = !categoryFilter || category === categoryFilter;
-
-                row.style.display = matchesSearch && matchesVehicle && matchesDriver && matchesCategory ? '' : 'none';
-            });
-        }
 
         function viewAllInsights() {
             document.getElementById('insightsModal').classList.remove('hidden');
@@ -729,7 +717,7 @@ $vehicles = getVehicles();
         }
 
         function applyFilters() {
-            filterTable();
+            filterExpenses();
             alert('Filters applied successfully!');
         }
 
@@ -740,7 +728,7 @@ $vehicles = getVehicles();
             document.getElementById('filterDriver').value = '';
             document.getElementById('filterCategory').value = '';
             document.getElementById('searchInput').value = '';
-            filterTable();
+            filterExpenses();
         }
 
         function exportPDF() {
@@ -773,6 +761,63 @@ $vehicles = getVehicles();
             document.getElementById('filterDateStart').value = firstDay.toISOString().split('T')[0];
             document.getElementById('filterDateEnd').value = lastDay.toISOString().split('T')[0];
         });
+
+        function filterExpenses() {
+    const search   = document.getElementById('searchInput').value.toLowerCase();
+    const vehicle  = document.getElementById('filterVehicle').value.toLowerCase();
+    const driver   = document.getElementById('filterDriver').value.toLowerCase();
+    const category = document.getElementById('filterCategory').value.toLowerCase();
+    const start    = document.getElementById('filterDateStart').value;
+    const end      = document.getElementById('filterDateEnd').value;
+
+    const rows = document.querySelectorAll('#tableBody tr');
+
+    rows.forEach(row => {
+        const rowVehicle  = row.dataset.vehicle || '';
+        const rowDriver   = row.dataset.driver || '';
+        const rowCategory = row.dataset.category || '';
+        const rowDate     = row.dataset.date || '';
+
+        const matchesSearch =
+            rowVehicle.includes(search) ||
+            rowDriver.includes(search);
+
+        const matchesVehicle =
+            vehicle === '' || rowVehicle.includes(vehicle);
+
+        const matchesDriver =
+            driver === '' || rowDriver.includes(driver);
+
+        const matchesCategory =
+            category === '' || rowCategory === category.toLowerCase();
+
+        const matchesDate =
+            (!start || rowDate >= start) &&
+            (!end   || rowDate <= end);
+
+        row.style.display =
+            matchesSearch &&
+            matchesVehicle &&
+            matchesDriver &&
+            matchesCategory &&
+            matchesDate
+                ? ''
+                : 'none';
+    });
+}
+const categoryMap = {
+    'fuel': 'fuel',
+    'maintenance': 'maintenance',
+    'repairs': 'repairs',
+    'licensing': 'licensing',
+    'miscellaneous': 'misc' // map select value to dataset
+};
+
+const selected = document.getElementById('filterCategory').value.toLowerCase();
+const mappedCategory = categoryMap[selected] || '';
+const matchesCategory = mappedCategory === '' || rowCategory === mappedCategory;
+
+
     </script>
 </body>
 </html>

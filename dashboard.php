@@ -1,5 +1,6 @@
 <?php
 include 'includes/functions.php';
+include 'includes/db.php';
 $kpi = getKPIData();
 ?>
 <!DOCTYPE html>

@@ -1,18 +1,33 @@
 <?php
 include '../includes/functions.php';
+
 $behaviorData = getDriverBehaviorData();
-$incidents = getBehaviorIncidents();
-$trends = getMonthlyBehaviorTrends();
+$incidents    = getBehaviorIncidents();
+$trends       = getMonthlyBehaviorTrends();
 
-// Calculate totals
-$totalSpeeding = array_sum(array_column($behaviorData, 'speeding'));
-$totalHarshBraking = array_sum(array_column($behaviorData, 'harsh_braking'));
-$avgIdleTime = round(array_sum(array_column($behaviorData, 'idle_time')) / count($behaviorData));
-$avgScore = round(array_sum(array_column($behaviorData, 'score')) / count($behaviorData));
+// Number of drivers
+$totalDrivers = count($behaviorData);
 
-// Sort for leaderboard
-usort($behaviorData, fn($a, $b) => $b['score'] - $a['score']);
+// Calculate totals safely
+$totalSpeeding    = $totalDrivers > 0 ? array_sum(array_column($behaviorData, 'speeding')) : 0;
+$totalHarshBraking = $totalDrivers > 0 ? array_sum(array_column($behaviorData, 'harsh_braking')) : 0;
+$avgIdleTime      = $totalDrivers > 0 ? round(array_sum(array_column($behaviorData, 'idle_time')) / $totalDrivers) : 0;
+$avgScore         = $totalDrivers > 0 ? round(array_sum(array_column($behaviorData, 'score')) / $totalDrivers) : 0;
+
+// Sort for leaderboard if data exists
+if ($totalDrivers > 0) {
+    usort($behaviorData, fn($a, $b) => $b['score'] - $a['score']);
+}
+
+// Prepare data for charts safely
+$trendsMonths       = !empty($trends) ? array_column($trends, 'month') : [];
+$trendsSpeeding     = !empty($trends) ? array_column($trends, 'speeding') : [];
+$trendsHarshBraking = !empty($trends) ? array_column($trends, 'harsh_braking') : [];
+
+// For incident chart, avoid division by zero
+$incidentData = $totalDrivers > 0 ? [$totalSpeeding, $totalHarshBraking, $totalDrivers] : [0, 0, 0];
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

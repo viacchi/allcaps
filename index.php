@@ -1,3 +1,45 @@
+<?php
+session_start();
+include "includes/db.php";
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $password = $_POST['password'];
+
+    $query = "SELECT * FROM users WHERE email='$email' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+
+    if (!$result) {
+        die("SQL Error: " . mysqli_error($conn));
+    }
+
+    if (mysqli_num_rows($result) === 1) {
+        $user = mysqli_fetch_assoc($result);
+
+        // TEMPORARY: plain text password check
+        if ($password === $user['password']) {
+
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['logged_in'] = true;
+
+            if (strtolower(trim($user['role'])) === 'admin') {
+                header("Location: dashboard.php");
+            } else {
+                header("Location: user/dashboard.php");
+            }
+            exit;
+        }
+    }
+
+    $error = "Invalid email or password.";
+}
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -172,17 +214,17 @@
     <h2 class="text-xl font-semibold text-center mb-2 text-green-700">Log In</h2>
     <p class="text-sm text-gray-600 text-center mb-4">Enter your credentials to access the dashboard</p>
 
-    <form id="LoginForm" class="space-y-4">
+    <form method="POST" action="" class="space-y-4">
 
       <div>
         <label class="block text-sm font-medium text-black-700">Email Address</label>
-        <input id="email" type="email" placeholder="yourexample@.com..." required
+        <input name="email" id="email" type="email" placeholder="yourexample@.com..." required
           class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
       </div>
 
       <div>
         <label class="block text-sm font-medium text-black-700">Password</label>
-        <input id="password" type="password" placeholder="Enter your password..." required
+        <input name="password" id="password" type="password" placeholder="Enter your password..." required
           class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600 focus:border-green-600 shadow-sm shadow-green-100">
       </div>
 
@@ -196,14 +238,6 @@
       </p>
 
       <p id="message" class="text-center mt-4 text-sm font-medium"></p>
-      <p class="text-center text-black-600 mt-4">
-        Doesn't have account? 
-        <a href="signup.html" class="text-green-500 hover:underline font-medium">SignUp Here</a>
-      </p>
-      <p class="text-medium mt-2 text-center">
-        By signing up, you agree to our
-        <a href="#" id="openTerms" class="terms-link">Terms and Conditions</a>
-      </p>
     </form>
   </div>
 
@@ -419,17 +453,6 @@
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
 
-      if (email === "admin@example.com" && password === "1234") {
-        localStorage.setItem("SignUp", "true");
-        alert("Welcome Admin!");
-        window.location.href = "admin.html";
-      } else if (email === "user@example.com" && password === "5678") {
-        localStorage.setItem("SignUp", "true");
-        alert("Welcome User!");
-        window.location.href = "user.html";
-      } else {
-        alert("Invalid email or password. Try Again!");
-      }
     });
   </script>
 </body>

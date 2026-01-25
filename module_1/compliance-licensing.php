@@ -1,5 +1,51 @@
 <?php
 include '../includes/functions.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['documentFile'])) {
+    $vehiclePlate = $_POST['vehicle'];
+    $vehicleId = getVehicleIdByPlate($vehiclePlate);
+
+    if (!$vehicleId) {
+        die("Invalid vehicle");
+    }
+
+    $uploadDir = "../uploads/compliance/";
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $fileName = time() . "_" . basename($_FILES['documentFile']['name']);
+    $filePath = $uploadDir . $fileName;
+
+    if (!move_uploaded_file($_FILES['documentFile']['tmp_name'], $filePath)) {
+        die("File upload failed");
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO compliance_documents
+        (vehicle_id, document_type, issue_date, expiry_date, document_number, file_path, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt->bind_param(
+        "issssss",
+        $vehicleId,
+        $_POST['documentType'],
+        $_POST['issueDate'],
+        $_POST['expiryDate'],
+        $_POST['documentNumber'],
+        $filePath,
+        $_POST['notes']
+    );
+
+    if (!$stmt->execute()) {
+        die("Insert failed: " . $stmt->error);
+    }
+
+    header("Location: compliance.php");
+    exit;
+}
+
 $compliance = getComplianceRecords();
 ?>
 <!DOCTYPE html>
@@ -210,7 +256,7 @@ $compliance = getComplianceRecords();
                 </button>
             </div>
 
-            <form id="uploadForm" onsubmit="saveDocument(event)" class="p-6">
+            <form id="uploadForm" method="POST" enctype="multipart/form-data">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
