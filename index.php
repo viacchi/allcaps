@@ -20,24 +20,45 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         // TEMPORARY: plain text password check
         if ($password === $user['password']) {
 
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['logged_in'] = true;
+        $_SESSION['user'] = [
+            'user_id'   => $user['user_id'],
+            'full_name' => $user['full_name'],
+            'role'      => $user['role'],
+            'email'     => $user['email'],
+            'status'    => $user['status']
+        ];
+        $_SESSION['logged_in'] = true;
 
-            if (strtolower(trim($user['role'])) === 'admin') {
-                header("Location: dashboard.php");
-            } else {
-                header("Location: user/dashboard.php");
+            // Role-based folder
+            $role = strtolower(trim($user['role']));
+            switch ($role) {
+                case 'admin':
+                    $folder = 'ADMIN';
+                    break;
+                case 'driver':
+                    $folder = 'DRIVER';
+                    break;
+                case 'staff':
+                    $folder = 'STAFF';
+                    break;
+                case 'employee':
+                    $folder = 'EMPLOYEE';
+                    break;
+                default:
+                    $folder = 'USER';
             }
+
+            // Redirect to role folder dashboard
+            header("Location: $folder/dashboard.php");
             exit;
         }
     }
 
     $error = "Invalid email or password.";
 }
-
 ?>
+
+
 
 
 <!DOCTYPE html>
