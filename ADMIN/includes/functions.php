@@ -213,28 +213,32 @@ function getVehicleIdByPlate($plate) {
 function getFuelExpenses() {
     global $conn;
 
-    $query = "
-        SELECT f.id,
-               f.vehicle_id,
-               v.plate AS vehicle,
-               f.date,
-               f.liters,
-               f.cost,
-               u.full_name AS driver,
-               f.receipt_path
-        FROM fuel_expenses f
-        JOIN vehicles v ON f.vehicle_id = v.id
-        LEFT JOIN users u ON f.driver_id = u.user_id
+    $expenses = [];
+
+    $sql = "
+        SELECT
+            fe.id,
+            fe.date,
+            fe.liters,
+            fe.cost,
+            fe.receipt_path,
+            fe.fuel_type,
+            fe.status,
+            CONCAT(v.plate, ' - ', v.model) AS vehicle,
+            u.full_name AS driver
+        FROM fuel_expenses fe
+        LEFT JOIN vehicles v ON fe.vehicle_id = v.id
+        LEFT JOIN drivers d ON fe.driver_id = d.user_id
+        LEFT JOIN users u ON d.user_id = u.user_id
+        ORDER BY fe.date DESC
     ";
 
-    $result = mysqli_query($conn, $query);
-
+    $result = $conn->query($sql);
     if (!$result) {
-        die("SQL Error in getFuelExpenses(): " . mysqli_error($conn));
+        die('SQL ERROR: ' . $conn->error);
     }
 
-    $expenses = [];
-    while ($row = mysqli_fetch_assoc($result)) {
+    while ($row = $result->fetch_assoc()) {
         $expenses[] = $row;
     }
 

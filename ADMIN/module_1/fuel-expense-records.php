@@ -1,67 +1,59 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 include '../includes/functions.php';
+$expenses = getFuelExpenses();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // 1️⃣ Get POST data safely
-    $vehicle_id = isset($_POST['vehicle_id']) ? intval($_POST['vehicle_id']) : null;
-    $date       = isset($_POST['date']) ? $_POST['date'] : null;
-    $liters     = isset($_POST['liters']) ? floatval($_POST['liters']) : 0;
-    $cost       = isset($_POST['cost']) ? floatval($_POST['cost']) : 0;
-    $driver_id  = isset($_POST['driver_id']) ? intval($_POST['driver_id']) : null;
+    $vehicle_id = intval($_POST['vehicle_id'] ?? 0);
+    $date       = $_POST['date'] ?? null;
+    $liters     = floatval($_POST['liters'] ?? 0);
+    $cost       = floatval($_POST['cost'] ?? 0);
+    $driver_id  = intval($_POST['driver_id'] ?? 0);
+    $fuel_type  = $_POST['fuel_type'] ?? 'Gasoline';
+    $status     = 'Pending';
 
-    // 2️⃣ Validate required fields
-    $errors = [];
-    if (!$vehicle_id) $errors[] = "Vehicle is required.";
-    if (!$date) $errors[] = "Date is required.";
-    if ($liters <= 0) $errors[] = "Liters must be greater than 0.";
-    if ($cost <= 0) $errors[] = "Cost must be greater than 0.";
-    if (!$driver_id) $errors[] = "Driver is required.";
-
-    if (!empty($errors)) {
-        foreach ($errors as $err) {
-            echo "<p style='color:red;'>Error: $err</p>";
-        }
-        exit;
+    if (!$vehicle_id || !$date || $liters <= 0 || $cost <= 0 || !$driver_id) {
+        die('❌ Missing required fields');
     }
 
-    // 3️⃣ Handle file upload
+    // File upload
     $receipt_path = null;
-    if (isset($_FILES['receipt_file']) && $_FILES['receipt_file']['error'] === 0) {
+    if (!empty($_FILES['receipt_file']['name'])) {
         $uploadDir = '../uploads/fuel_receipts/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
-        $fileExt = pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION);
-        $fileName = time() . '_' . rand(1000,9999) . '.' . $fileExt;
+        $ext = pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION);
+        $fileName = time() . '_' . uniqid() . '.' . $ext;
         $targetFile = $uploadDir . $fileName;
 
         if (move_uploaded_file($_FILES['receipt_file']['tmp_name'], $targetFile)) {
-            $receipt_path = 'uploads/fuel_receipts/' . $fileName; // relative path
+            $receipt_path = 'uploads/fuel_receipts/' . $fileName;
+        }
     }
 
-    // 4️⃣ Insert into DB
-    $sql = "INSERT INTO fuel_expenses (vehicle_id, date, liters, cost, driver_id, receipt_path)
-            VALUES (?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO fuel_expenses
+        (vehicle_id, date, liters, cost, driver_id, receipt_path, fuel_type, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
-    global $conn; // make sure $conn exists in functions.php
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "isddisss",
+        $vehicle_id,
+        $date,
+        $liters,
+        $cost,
+        $driver_id,
+        $receipt_path,
+        $fuel_type,
+        $status
+    );
+    $stmt->execute();
+    $stmt->close();
 
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("isddis", $vehicle_id, $date, $liters, $cost, $driver_id, $receipt_path);
-        $stmt->execute();
-        $stmt->close();
-    }
-
-    // Redirect after successful insert
     header("Location: " . $_SERVER['PHP_SELF']);
     exit;
 }
-}
-// Fetch expenses for table
-$expenses = getFuelExpenses();
+
 ?>
 
 <!DOCTYPE html>
@@ -171,10 +163,9 @@ $expenses = getFuelExpenses();
 
             <!-- Fuel Expense Table -->
             <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div class="bg-gray-50 border-b border-gray-200 px-5 py
-                -4">
+                <div class="bg-gray-50 border-b border-gray-200 px-5 py00-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <h2 class="text-lg font-bold text-gray-900">Fuel & Expense Records</h2>
+                        <h2 class="text-lg font-bold text-gray-900"> Records</h2>
                         <div class="flex flex-col sm:flex-row gap-3">
                             <div class="flex gap-3">
                                 <input type="text" id="searchInput" placeholder="Search by vehicle or driver..." onkeyup="filterTable()" class="px-4 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-auto">
@@ -206,37 +197,65 @@ $expenses = getFuelExpenses();
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Cost</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Cost/Liter</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Driver</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Fuel Type</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Actions</th>
                             </tr>
-                        </thead>
-                        <tbody id="tableBody">
+
+
+        <tbody id="tableBody">
                             <?php foreach ($expenses as $expense): ?>
-                            <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                                <td class="px-5 py-4 text-sm font-semibold text-primary-green"><?php echo $expense['vehicle']; ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($expense['date'])); ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700"><?php echo number_format($expense['liters'], 2); ?> L</td>
-                                <td class="px-5 py-4 text-sm text-gray-700 font-medium">₱<?php echo number_format($expense['cost'], 2); ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700">₱<?php echo number_format($expense['cost'] / $expense['liters'], 2); ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700"><?php echo $expense['driver']; ?></td>
-                                <td class="px-5 py-4 text-sm">
-                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                        Verified
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4 text-sm">
-                                    <div class="flex gap-2">
-<button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" 
-    onclick='viewExpense(<?= json_encode($expense) ?>)'>
-    <i class="fas fa-eye"></i> View
-</button>
-                                        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" onclick="editExpense(<?php echo $expense['id']; ?>)">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
+    <?php 
+        $fuelType = $expense['fuel_type'] ?? '-'; // default '-' if not set
+        $status = $expense['status'] ?? 'Pending'; // default 'Pending'
+    ?>
+    <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-4 text-sm font-semibold text-primary-green"><?php echo $expense['vehicle']; ?></td>
+        <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($expense['date'])); ?></td>
+        <td class="px-5 py-4 text-sm text-gray-700"><?php echo number_format($expense['liters'], 2); ?> L</td>
+        <td class="px-5 py-4 text-sm text-gray-700 font-medium">₱<?php echo number_format($expense['cost'], 2); ?></td>
+        <td class="px-5 py-4 text-sm text-gray-700">₱<?php echo $expense['liters'] > 0 ? number_format($expense['cost'] / $expense['liters'], 2) : '0.00'; ?></td>
+        <td class="px-5 py-4 text-sm text-gray-700"><?php echo $expense['driver']; ?></td>
+        <td class="px-5 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fuelType); ?></td>
+        <td class="px-5 py-4 text-sm">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold
+            <?php
+            echo match($status) {
+                'Pending' => 'bg-yellow-100 text-yellow-800',
+                'Under Review' => 'bg-blue-100 text-blue-800',
+                'Approved' => 'bg-green-100 text-green-800',
+                'Rejected' => 'bg-red-100 text-red-800',
+                default => 'bg-gray-100 text-gray-800'
+            };
+            ?>">
+            <?= htmlspecialchars($status) ?>
+            </span>
+        </td>
+        <td class="px-5 py-4 text-sm">
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" 
+                    onclick='viewExpense(<?= json_encode($expense) ?>)'>
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" 
+                    onclick="editExpense(<?php echo $expense['id']; ?>)">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+            </div>
+        </td>
+    </tr>
+<?php endforeach; ?>
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+     
+
+
                         </tbody>
                     </table>
                 </div>
@@ -295,6 +314,17 @@ $expenses = getFuelExpenses();
                         <?php endforeach; ?>
                     </select>
                 </div>
+
+                 <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Fuel Type</label>
+            <select id="entryFuelType" name="fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+              <option value="">Select</option>
+              <option>Gasoline</option>
+              <option>Diesel</option>
+              <option>Hybrid</option>
+              <option>Bio-Diesel</option>
+            </select>
+          </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Gas Station</label>
