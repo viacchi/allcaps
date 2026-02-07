@@ -149,7 +149,7 @@ $unreadCount = getUnreadNotificationCount();
 
     <!-- Footer -->
     <div class="bg-gray-50 px-4 py-3 border-t border-gray-200">
-        <a href="/CAPTONES/notifications.php" class="block text-center text-sm font-semibold text-primary-green hover:text-dark-green transition-colors">
+        <a href="/CAPTONES/ADMIN/notifications.php" class="block text-center text-sm font-semibold text-primary-green hover:text-dark-green transition-colors">
             View All Notifications →
         </a>
     </div>
@@ -184,7 +184,7 @@ $unreadCount = getUnreadNotificationCount();
             <i class="fas fa-bell w-5"></i>
             <span>Notification Settings</span>
         </a>
-        <a href="/CAPTONES/contact-support.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+        <a href="/ADMIN/contact-support.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
             <i class="fas fa-life-ring w-5"></i>
             <span>Help & Support</span>
         </a>

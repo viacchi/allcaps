@@ -457,52 +457,72 @@ function getDriverProfiles() {
     global $conn;
 
     $sql = "
-        SELECT 
+        SELECT
             d.id,
-            d.name,
+            d.user_id,
+
+            CONCAT(u.full_name) AS name,
+            u.email,
+
             d.license,
-            d.email,
-            d.contact AS phone,
+            d.status,
             d.address,
             d.emergency_contact,
             d.blood_type,
-            d.status,
             d.join_date,
             d.expiry,
+
             d.rating,
             d.safety_score,
             d.on_time_rate,
             d.total_trips,
             d.total_distance,
             d.incidents
+
         FROM drivers d
-        ORDER BY d.name ASC
+        JOIN users u ON d.user_id = u.user_id
+        ORDER BY u.full_name
     ";
 
-    $res = $conn->query($sql);
-    $drivers = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $result = $conn->query($sql);
 
-    // Temporary certifications
-    foreach ($drivers as &$driver) {
-        $driver['certifications'] = [
-            'Defensive Driving',
-            'First Aid',
-            'Hazard Handling'
-        ];
+    if (!$result) {
+        die('SQL Error: ' . $conn->error);
     }
 
-    return $drivers;
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
 
 function getIncidentCases() {
     global $conn;
-    $sql = "SELECT ic.*, d.name AS driver, v.plate AS vehicle
-            FROM incident_cases ic
-            LEFT JOIN drivers d ON ic.driver_id = d.id
-            LEFT JOIN vehicles v ON ic.vehicle_id = v.id
-            ORDER BY ic.date DESC";
+
+    $sql = "
+        SELECT 
+            ic.id,
+            ic.case_number,
+            ic.type,
+            ic.severity,
+            ic.date,
+            ic.location,
+            ic.status,
+            ic.reported_by,
+
+            CONCAT(full_name) AS driver,
+            IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle
+
+        FROM incident_cases ic
+        JOIN users u ON ic.driver_id = u.user_id
+        LEFT JOIN vehicles v ON ic.vehicle_id = v.id
+        ORDER BY ic.date DESC
+    ";
+
     $result = $conn->query($sql);
-    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+
+    if (!$result) {
+        die('SQL Error: ' . $conn->error);
+    }
+
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
 
 // Fetch all driver behavior data
@@ -699,34 +719,33 @@ function getTransportExpenses() {
     global $conn;
 
     $sql = "
-        SELECT 
-            e.expense_id,
-            e.date,
-            e.category,
-            e.amount,
-            e.description,
-            COALESCE(v.plate, 'N/A') AS vehicle,
-            COALESCE(d.name, 'Unassigned') AS driver
-        FROM transport_expenses e
-        LEFT JOIN vehicles v ON e.vehicle_id = v.id
-        LEFT JOIN drivers d ON e.driver_id = d.id
-        ORDER BY e.date DESC
+        SELECT
+            te.expense_id,
+            te.date,
+            te.category,
+            te.amount,
+            te.description,
+
+            IFNULL(v.plate, 'N/A') AS vehicle,
+            IFNULL(CONCAT(u.full_name), 'N/A') AS driver
+
+        FROM transport_expenses te
+        LEFT JOIN vehicles v ON te.vehicle_id = v.id
+        LEFT JOIN drivers d ON te.driver_id = d.id
+        LEFT JOIN users u ON d.user_id = u.user_id
+
+        ORDER BY te.date DESC
     ";
 
     $result = $conn->query($sql);
 
-    // 🔴 If query fails, show the REAL SQL error
     if (!$result) {
-        die("SQL ERROR in getTransportExpenses(): " . $conn->error);
+        die('SQL ERROR in getTransportExpenses(): ' . $conn->error);
     }
 
-    $expenses = [];
-    while ($row = $result->fetch_assoc()) {
-        $expenses[] = $row;
-    }
-
-    return $expenses;
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
+
 
 function getTransportCostSummary() {
     global $conn; // mysqli connection

@@ -154,7 +154,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 <i class="fas fa-headset text-white text-2xl mb-2"></i>
                 <div class="text-white text-sm font-semibold">Need Help?</div>
                 <div class="text-white text-opacity-70 text-xs mt-1">Contact support team</div>
-                <button class="w-full mt-3 px-4 py-2 bg-white bg-opacity-20 text-white rounded-md text-sm font-semibold hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center gap-2" onclick="window.location.href='/CAPTONES/contact-support.php'">
+                <button class="w-full mt-3 px-4 py-2 bg-white bg-opacity-20 text-white rounded-md text-sm font-semibold hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center gap-2" onclick="window.location.href='/CAPTONES/ADMIN/contact-support.php'">
                      <i class="fas fa-envelope"></i> Contact
                 </button>
             </div>

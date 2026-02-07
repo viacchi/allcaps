@@ -469,24 +469,13 @@ $reservations = getReservations();
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                        <select id="newVehicle" required>
+                        <select id="newVehicle" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Vehicle</option>
                             <?php foreach (getVehicles() as $vehicle): ?>
                                 <?php if ($vehicle['status'] === 'Active'): ?>
                                 <option value="<?php echo $vehicle['id']; ?>">
                                     <?php echo $vehicle['plate']; ?> - <?php echo $vehicle['model']; ?> (<?php echo $vehicle['type']; ?>)
                                 </option>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Assign Driver (Optional)</label>
-                        <select id="newDriver">
-                            <option value="">Assign later</option>
-                            <?php foreach (getAvailableDrivers() as $driver): ?>
-                                <?php if ($driver['status'] === 'Available'): ?>
-                                <option value="<?php echo $driver['id']; ?>"><?php echo $driver['name']; ?></option>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </select>

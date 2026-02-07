@@ -422,8 +422,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <select id="caseDriver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Driver</option>
                             <?php foreach (getDrivers() as $driver): ?>
-                                <option value="<?php echo $driver['id']; ?>">
-                                    <?php echo $driver['name']; ?>
+                                <option value="<?php echo $driver['user_id']; ?>">
+                                    <?php echo $driver['full_name']; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
