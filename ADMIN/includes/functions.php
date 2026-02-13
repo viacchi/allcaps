@@ -498,8 +498,9 @@ function getIncidentCases() {
             ic.location,
             ic.status,
             ic.reported_by,
+            ic.attachments,  -- <--- add this line
 
-            CONCAT(full_name) AS driver,
+            CONCAT(u.full_name) AS driver,
             IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle
 
         FROM incident_cases ic
@@ -699,21 +700,23 @@ function getTransportExpenses() {
 
     $sql = "
         SELECT
-            te.expense_id,
-            te.date,
-            te.category,
-            te.amount,
-            te.description,
+            er.id AS expense_id,
+            er.request_date AS date,
+            er.expense_type AS category,
+            er.amount,
+            er.description,
 
-            IFNULL(v.plate, 'N/A') AS vehicle,
-            IFNULL(CONCAT(u.full_name), 'N/A') AS driver
+            IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle,
+            IFNULL(u.full_name, 'N/A') AS driver
 
-        FROM transport_expenses te
-        LEFT JOIN vehicles v ON te.vehicle_id = v.id
-        LEFT JOIN drivers d ON te.driver_id = d.id
+        FROM expense_requests er
+        LEFT JOIN vehicles v ON er.vehicle_id = v.id
+        LEFT JOIN drivers d ON er.driver_id = d.id
         LEFT JOIN users u ON d.user_id = u.user_id
 
-        ORDER BY te.date DESC
+        WHERE er.status = 'Approved'
+
+        ORDER BY er.request_date DESC
     ";
 
     $result = $conn->query($sql);
@@ -768,12 +771,24 @@ function getTransportCostSummary() {
  // 3️⃣ Get fuel cost trends per vehicle
 function getFuelConsumptionTrends() {
     global $conn;
-    $sql = "SELECT v.plate, v.vehicle, SUM(fe.liters) AS total_liters, SUM(fe.cost) AS total_cost
-            FROM vehicles v
-            LEFT JOIN fuel_expenses fe ON fe.vehicle_id = v.id
-            GROUP BY v.id
-            ORDER BY total_cost DESC";
+
+    $sql = "
+        SELECT 
+            DATE_FORMAT(date, '%b %Y') AS month,
+            SUM(liters) AS consumption,
+            SUM(cost) AS cost
+        FROM fuel_expenses
+        WHERE status = 'Approved'
+        GROUP BY YEAR(date), MONTH(date)
+        ORDER BY YEAR(date), MONTH(date)
+    ";
+
     $result = $conn->query($sql);
+
+    if (!$result) {
+        die('SQL ERROR in getFuelConsumptionTrends(): ' . $conn->error);
+    }
+
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
@@ -910,4 +925,37 @@ function createReservation($data) {
     $stmt->bind_param("iisss", $vehicle_id, $driver_id, $reserved_date, $purpose, $notes);
     return $stmt->execute();
 }
+
+// Get a single fuel expense by ID
+function getFuelExpenseById($id) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT * FROM fuel_expenses WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}
+
+function updateFuelExpense($data) {
+    global $conn;
+    $stmt = $conn->prepare("
+        UPDATE fuel_expenses
+        SET vehicle_id=?, driver_id=?, date=?, liters=?, cost=?, fuel_type=?, gas_station=?, receipt_number=?, notes=?
+        WHERE id=?
+    ");
+    $stmt->bind_param(
+        "iisdissssi",
+        $data['vehicle_id'],
+        $data['driver_id'],
+        $data['date'],
+        $data['liters'],
+        $data['cost'],
+        $data['fuel_type'],
+        $data['gas_station'],
+        $data['receipt_number'],
+        $data['notes'],
+        $data['id']
+    );
+    return $stmt->execute();
+}
+
 ?>

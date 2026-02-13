@@ -1,27 +1,17 @@
 <?php
 include '../includes/functions.php';
 
-// Handle vehicle deactivation
-if (isset($_POST['deactivate_id'])) {
-    deactivateVehicle($_POST['deactivate_id']);
-    header("Location: ".$_SERVER['PHP_SELF']);
-    exit;
-}
-
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? null;
 
-    if ($id) {
-        updateVehicle($_POST); // UPDATE
-    } else {
-        addVehicle($_POST); // INSERT
-    }
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requestVehicle($_POST);
     header("Location: ".$_SERVER['PHP_SELF']);
     exit;
 }
-
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit;
+}
 
 
 $vehicles = getVehicles();
@@ -85,7 +75,7 @@ $vehicles = getVehicles();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Active Vehicles</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Active')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Available')); ?></div>
                             <div class="text-xs font-medium text-green-600">
                                 <i class="fas fa-arrow-up"></i> 2.1% vs last month
                             </div>
@@ -100,7 +90,7 @@ $vehicles = getVehicles();
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Maintenance Due</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Maintenance')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Under Maintenance')); ?></div>
                             <div class="text-xs font-medium text-red-600">
                                 <i class="fas fa-arrow-up"></i> 0.8% vs last month
                             </div>
@@ -132,7 +122,7 @@ $vehicles = getVehicles();
                 <div class="bg-gray-50 border-b border-gray-200 px-5 py-4 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-900">Vehicle Registry</h2>
                     <button class="px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300 inline-flex items-center gap-2" onclick="openAddVehicleModal()">
-                        <i class="fas fa-plus"></i> Add Vehicle
+                        <i class="fas fa-plus"></i> Request Vehicle
                     </button>
                 </div>
 
@@ -149,9 +139,10 @@ $vehicles = getVehicles();
                         </select>
                         <select id="statusFilter" onchange="filterTable()" class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white">
                             <option value="">All Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                            <option value="Maintenance">Maintenance</option>
+                            <option value="Available">Available</option>
+                            <option value="On Trip">On Trip</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Under Maintenance">Under Maintenance</option>
                         </select>
                     </div>
                 </div>
@@ -178,12 +169,22 @@ $vehicles = getVehicles();
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo $vehicle['type']; ?></td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo $vehicle['year']; ?></td>
                                 <td class="px-5 py-4 text-sm">
-                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold <?php 
-                                        echo $vehicle['status'] === 'Active' ? 'bg-green-100 text-green-800' : 
-                                            ($vehicle['status'] === 'Maintenance' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'); 
-                                    ?>">
-                                        <?php echo $vehicle['status']; ?>
-                                    </span>
+                                <?php
+                                $status = $vehicle['status'];
+
+                                $badgeClass = match ($status) {
+                                    'Available' => 'bg-green-100 text-green-800',
+                                    'On Trip' => 'bg-blue-100 text-blue-800',
+                                    'Reserved' => 'bg-purple-100 text-purple-800',
+                                    'Under Maintenance' => 'bg-yellow-100 text-yellow-800',
+                                    'Inactive' => 'bg-gray-200 text-gray-600',
+                                    default => 'bg-red-100 text-red-800'
+                                };
+                                ?>
+
+                                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold <?= $badgeClass ?>">
+                                    <?= htmlspecialchars($status) ?>
+                                </span>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($vehicle['last_maintenance'])); ?></td>
                                 <td class="px-5 py-4 text-sm">
@@ -191,9 +192,6 @@ $vehicles = getVehicles();
                                         <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold"
                                             onclick='editVehicle(<?php echo json_encode($vehicle); ?>)'>
                                             <i class="fas fa-edit"></i> Edit
-                                        </button>
-                                        <button class="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-semibold hover:bg-red-600 transition-all inline-flex items-center gap-1.5" onclick="confirmDeactivateVehicle(<?php echo $vehicle['id']; ?>)">
-                                            <i class="fas fa-ban"></i> Deactivate
                                         </button>
                                     </div>
                                 </td>
@@ -250,9 +248,8 @@ $vehicles = getVehicles();
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
                         <select id="status" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                            <option value="Active">Active</option>
+                            <option value="Available">Available</option>
                             <option value="Inactive">Inactive</option>
-                            <option value="Maintenance">Maintenance</option>
                         </select>
                     </div>
                     <div class="mb-4">
@@ -283,32 +280,6 @@ $vehicles = getVehicles();
         </div>
     </div>
 
-    <!-- Deactivate Confirmation Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="confirmModal">
-        <div class="bg-white rounded-lg w-11/12 max-w-md shadow-2xl p-8">
-            <div class="flex justify-between items-center mb-6">
-                <span class="text-xl font-bold text-gray-900">Confirm Action</span>
-                <button onclick="closeConfirmModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="mb-6 text-gray-700">
-                <p id="confirmMessage">Are you sure you want to deactivate this vehicle?</p>
-            </div>
-            <div class="flex gap-3">
-                <form method="POST" class="flex-1">
-                    <input type="hidden" name="deactivate_id" id="deactivateId">
-                    <button type="submit"
-                        class="w-full px-4 py-2 bg-red-500 text-white rounded-md text-sm font-semibold hover:bg-red-600 transition-all duration-300 inline-flex items-center justify-center gap-2">
-                        <i class="fas fa-check"></i> Confirm
-                    </button>
-                </form>
-                <button class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeConfirmModal()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-            </div>
-        </div>
-    </div>
 
     <script>
         // Set active page title
@@ -375,14 +346,6 @@ $vehicles = getVehicles();
             closeVehicleModal();
         }
 
-        function confirmDeactivateVehicle(id) {
-            document.getElementById('deactivateId').value = id;
-            document.getElementById('confirmMessage').textContent =
-                'Are you sure you want to deactivate this vehicle?';
-
-            document.getElementById('confirmModal').classList.remove('hidden');
-            document.getElementById('confirmModal').classList.add('flex');
-        }
 
         function closeConfirmModal() {
             document.getElementById('confirmModal').classList.add('hidden');

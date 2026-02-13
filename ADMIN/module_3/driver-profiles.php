@@ -165,7 +165,9 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                         ];
                         $ratingStars = str_repeat('⭐', floor($driver['rating']));
                     ?>
-                    <div class="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all cursor-pointer" onclick='viewDriverProfile(<?php echo json_encode($driver); ?>)'>
+                    <div class="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all cursor-pointer" data-driver='<?php echo htmlspecialchars(json_encode($driver), ENT_QUOTES, 'UTF-8'); ?>'
+onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
+>
                         <!-- Driver Header -->
                         <div class="flex items-center gap-4 mb-4">
                             <div class="w-16 h-16 bg-gradient-to-br from-primary-green to-dark-green rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
@@ -213,9 +215,11 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                             </div>
                         </div>
 
-                        <!-- Quick Actions -->
+                        <!-- UTTON NA DI GUMAGANA -->
                         <div class="flex gap-2">
-                            <button class="flex-1 px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all" onclick="event.stopPropagation(); viewDriverProfile(<?php echo htmlspecialchars(json_encode($driver)); ?>)">
+                            <button 
+                                class="flex-1 px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all"
+                                onclick="event.stopPropagation(); viewDriverProfile(JSON.parse(this.closest('[data-driver]').dataset.driver))">
                                 <i class="fas fa-eye"></i> View Profile
                             </button>
                         </div>
@@ -227,7 +231,7 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
     </div>
 
     <!-- Driver Profile Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="profileModal">
+    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center" id="profileModal">
         <div class="bg-white rounded-lg w-11/12 max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <!-- Modal Header -->
             <div class="bg-gradient-to-r from-primary-green to-dark-green text-white px-6 py-4 flex items-center justify-between">
@@ -362,19 +366,6 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                             </div>
                         </div>
 
-                        <!-- Certifications & Training -->
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                                <i class="fas fa-certificate text-primary-green"></i>
-                                Certifications & Training
-                            </h4>
-                            <div class="space-y-2" id="modalCertifications">
-                                <!-- Certifications will be loaded here -->
-                            </div>
-                            <button class="mt-4 w-full px-3 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all">
-                                <i class="fas fa-plus"></i> Add Certification
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -581,6 +572,7 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
     </div>
 
     <script>
+
         let currentDriver = null;
 
         function filterDrivers() {
@@ -636,13 +628,6 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
             document.getElementById('modalTotalDistance').textContent = driver.total_distance.toLocaleString() + ' km';
 
             // Certifications
-            const certsHtml = driver.certifications.map(cert => `
-                <div class="flex items-center gap-2 text-sm">
-                    <i class="fas fa-check-circle text-green-600"></i>
-                    <span class="text-gray-900">${cert}</span>
-                </div>
-            `).join('');
-            document.getElementById('modalCertifications').innerHTML = certsHtml;
 
             // Trips Tab
             document.getElementById('modalTripsCompleted').textContent = driver.total_trips;
@@ -688,7 +673,7 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
 
             // Reset to first tab
             switchTab('personal');
-        }
+ }
 
         function closeProfileModal() {
             document.getElementById('profileModal').classList.add('hidden');
@@ -724,11 +709,10 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
         function exportDriverReport() {
             alert('Exporting driver report for ' + currentDriver.name);
         }
-
-        // Close modal when clicking outside
-        document.getElementById('profileModal').addEventListener('click', function(e) {
+               document.getElementById('profileModal').addEventListener('click', function(e) {
             if (e.target === this) closeProfileModal();
         });
+
     </script>
 </body>
 </html>

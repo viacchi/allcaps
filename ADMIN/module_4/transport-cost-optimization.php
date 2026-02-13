@@ -3,10 +3,50 @@ include '../includes/functions.php';
 $expenses = getTransportExpenses();
 $summary = getTransportCostSummary();
 $fuelTrends = getFuelConsumptionTrends();
-$vehicleCosts = getVehicleCostComparison();
+$vehicleCostsData = getVehicleCostComparison();
 $insights = getOptimizationInsights();
 $drivers = getAvailableDrivers();
 $vehicles = getVehicles();
+
+
+// 1️⃣ Expense Breakdown Chart
+$expenseLabels = [];
+$expenseData = [];
+$expenseColors = ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6'];
+
+if (!empty($summary['category_breakdown'])) {
+    foreach ($summary['category_breakdown'] as $category => $amount) {
+        $expenseLabels[] = $category;
+        $expenseData[] = $amount;
+    }
+}
+
+// 2️⃣ Fuel Consumption Trends Chart
+$months = [];
+$consumption = [];
+$costs = [];
+
+if (!empty($fuelTrends)) {
+    foreach ($fuelTrends as $trend) {
+        $months[] = $trend['month'] ?? 'N/A';
+        $consumption[] = $trend['consumption'] ?? 0;
+        $costs[] = $trend['cost'] ?? 0;
+    }
+}
+
+// 3️⃣ Vehicle Cost Comparison Chart
+$vehicleLabels = [];
+$vehicleCostData = [];
+$fleetAverage = 0;
+
+if (!empty($vehicleCostsData['vehicle_costs'])) {
+    foreach ($vehicleCostsData['vehicle_costs'] as $vehicle => $cost) {
+        $vehicleLabels[] = $vehicle;
+        $vehicleCostData[] = $cost;
+    }
+    $fleetAverage = $vehicleCostsData['fleet_average'] ?? 0;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -125,6 +165,13 @@ $vehicles = getVehicles();
 
             <!-- Optimization Insights -->
             
+<pre>
+<?php
+print_r($expenseLabels);
+print_r($months);
+print_r($vehicleLabels);
+?>
+</pre>
 
             <!-- Charts & Graphs -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -185,7 +232,7 @@ $vehicles = getVehicles();
                     <div class="mt-4 pt-4 border-t border-gray-200">
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Fleet Average:</span>
-                            <span class="font-semibold text-gray-900">₱<?php echo number_format($vehicleCosts['fleet_average']); ?></span>
+                            <span class="font-semibold text-gray-900">₱<?php echo number_format($fleetAverage); ?></span>
                         </div>
                     </div>
                 </div>
@@ -283,13 +330,13 @@ $vehicles = getVehicles();
                         </thead>
                         <tbody id="tableBody">
                             <?php foreach ($expenses as $expense): 
-                                $categoryColors = [
-                                    'Fuel' => 'bg-blue-100 text-blue-800',
-                                    'Maintenance' => 'bg-green-100 text-green-800',
-                                    'Repairs' => 'bg-red-100 text-red-800',
-                                    'Licensing' => 'bg-yellow-100 text-yellow-800',
-                                    'Misc' => 'bg-purple-100 text-purple-800'
-                                ];
+$categoryColors = [
+    'Fuel' => 'bg-blue-100 text-blue-800',
+    'Maintenance' => 'bg-green-100 text-green-800',
+    'Repair' => 'bg-red-100 text-red-800',
+    'Parts' => 'bg-yellow-100 text-yellow-800',
+    'Other' => 'bg-purple-100 text-purple-800'
+];
                             ?>
                             <tr
                             class="border-b border-gray-200 hover:bg-gray-50 transition-colors"
@@ -320,9 +367,12 @@ $vehicles = getVehicles();
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-600"><?php echo $expense['description']; ?></td>
                                 <td class="px-5 py-4 text-sm">
-                                    <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" onclick='viewExpenseDetail(<?php echo json_encode($expense); ?>)'>
-                                        <i class="fas fa-eye"></i> View
-                                    </button>
+<button 
+    class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5"
+    data-expense='<?php echo json_encode($expense, JSON_HEX_APOS | JSON_HEX_QUOT); ?>'
+    onclick="viewExpenseDetail(this)">
+    <i class="fas fa-eye"></i> View
+</button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -508,158 +558,135 @@ $vehicles = getVehicles();
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
         // Expense Breakdown Chart
-        const expenseCtx = document.getElementById('expenseChart').getContext('2d');
-        new Chart(expenseCtx, {
-            type: 'doughnut',
-            data: {
-                labels: <?php echo json_encode(array_keys($summary['category_breakdown'])); ?>,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($summary['category_breakdown'])); ?>,
-                    backgroundColor: ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += '₱' + context.parsed.toLocaleString();
-                                return label;
-                            }
-                        }
+// Expense Breakdown
+// 1️⃣ Expense Breakdown Chart
+const expenseCtx = document.getElementById('expenseChart').getContext('2d');
+new Chart(expenseCtx, {
+    type: 'doughnut',
+    data: {
+        labels: <?php echo json_encode($expenseLabels); ?>,
+        datasets: [{
+            data: <?php echo json_encode($expenseData); ?>,
+            backgroundColor: <?php echo json_encode($expenseColors); ?>
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) label += ': ';
+                        label += '₱' + context.parsed.toLocaleString();
+                        return label;
                     }
                 }
             }
-        });
+        }
+    }
+});
 
-        // Fuel Consumption Trends Chart
-        const fuelTrendCtx = document.getElementById('fuelTrendChart').getContext('2d');
-        new Chart(fuelTrendCtx, {
-            type: 'line',
-            data: {
-                labels: <?php echo json_encode(array_column($fuelTrends, 'month')); ?>,
-                datasets: [
-                    {
-                        label: 'Consumption (L)',
-                        data: <?php echo json_encode(array_column($fuelTrends, 'consumption')); ?>,
-                        borderColor: '#2D7A5C',
-                        backgroundColor: 'rgba(45, 122, 92, 0.1)',
-                        tension: 0.4,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Cost (₱)',
-                        data: <?php echo json_encode(array_column($fuelTrends, 'cost')); ?>,
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        yAxisID: 'y1'
-                    }
-                ]
+// 2️⃣ Fuel Consumption Trends Chart
+const fuelTrendCtx = document.getElementById('fuelTrendChart').getContext('2d');
+new Chart(fuelTrendCtx, {
+    type: 'line',
+    data: {
+        labels: <?php echo json_encode($months); ?>,
+        datasets: [
+            {
+                label: 'Consumption (L)',
+                data: <?php echo json_encode($consumption); ?>,
+                borderColor: '#2D7A5C',
+                backgroundColor: 'rgba(45, 122, 92, 0.1)',
+                tension: 0.4,
+                yAxisID: 'y'
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Liters'
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Cost (₱)'
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        }
-                    }
-                }
+            {
+                label: 'Cost (₱)',
+                data: <?php echo json_encode($costs); ?>,
+                borderColor: '#3B82F6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                yAxisID: 'y1'
             }
-        });
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'bottom' } },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: { display: true, text: 'Liters' }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: { display: true, text: 'Cost (₱)' },
+                grid: { drawOnChartArea: false }
+            }
+        }
+    }
+});
 
-        // Vehicle Cost Comparison Chart
-        const vehicleCostCtx = document.getElementById('vehicleCostChart').getContext('2d');
-        new Chart(vehicleCostCtx, {
-            type: 'bar',
-            data: {
-                labels: <?php echo json_encode(array_keys($vehicleCosts['vehicle_costs'])); ?>,
-                datasets: [
-                    {
-                        label: 'Vehicle Cost',
-                        data: <?php echo json_encode(array_values($vehicleCosts['vehicle_costs'])); ?>,
-                        backgroundColor: '#2D7A5C'
-                    },
-                    {
-                        label: 'Fleet Average',
-                        data: Array(<?php echo count($vehicleCosts['vehicle_costs']); ?>).fill(<?php echo $vehicleCosts['fleet_average']; ?>),
-                        type: 'line',
-                        borderColor: '#EF4444',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false
-                    }
-                ]
+// 3️⃣ Vehicle Cost Comparison Chart
+const vehicleCostCtx = document.getElementById('vehicleCostChart').getContext('2d');
+new Chart(vehicleCostCtx, {
+    type: 'bar',
+    data: {
+        labels: <?php echo json_encode($vehicleLabels); ?>,
+        datasets: [
+            {
+                label: 'Vehicle Cost',
+                data: <?php echo json_encode($vehicleCostData); ?>,
+                backgroundColor: '#2D7A5C'
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += '₱' + context.parsed.y.toLocaleString();
-                                return label;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '₱' + value.toLocaleString();
-                            }
-                        }
+            {
+                label: 'Fleet Average',
+                data: Array(<?php echo count($vehicleLabels); ?>).fill(<?php echo $fleetAverage; ?>),
+                type: 'line',
+                borderColor: '#EF4444',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        label += '₱' + context.parsed.y.toLocaleString();
+                        return label;
                     }
                 }
             }
-        });
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) { return '₱' + value.toLocaleString(); }
+                }
+            }
+        }
+    }
+});
 
 
 
@@ -673,30 +700,45 @@ $vehicles = getVehicles();
             document.getElementById('insightsModal').classList.remove('flex');
         }
 
-        function viewExpenseDetail(expense) {
-            const categoryColors = {
-                'Fuel': 'bg-blue-100 text-blue-800',
-                'Maintenance': 'bg-green-100 text-green-800',
-                'Repairs': 'bg-red-100 text-red-800',
-                'Licensing': 'bg-yellow-100 text-yellow-800',
-                'Misc': 'bg-purple-100 text-purple-800'
-            };
+function viewExpenseDetail(button) {
+    const expense = JSON.parse(button.dataset.expense);
 
-            document.getElementById('detailExpenseId').textContent = expense.expense_id;
-            document.getElementById('detailDate').textContent = new Date(expense.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            
-            const categoryEl = document.getElementById('detailCategory');
-            categoryEl.textContent = expense.category;
-            categoryEl.className = 'inline-block px-2 py-1 rounded-full text-xs font-semibold ' + categoryColors[expense.category];
-            
-            document.getElementById('detailAmount').textContent = '₱' + expense.amount.toLocaleString();
-            document.getElementById('detailVehicle').textContent = expense.vehicle;
-            document.getElementById('detailDriver').textContent = expense.driver;
-            document.getElementById('detailDescription').textContent = expense.description;
+$categoryColors = [
+    'Fuel' => '#3B82F6',
+    'Maintenance' => '#10B981',
+    'Repair' => '#EF4444',
+    'Parts' => '#F59E0B',
+    'Other' => '#8B5CF6'
+];
 
-            document.getElementById('expenseModal').classList.remove('hidden');
-            document.getElementById('expenseModal').classList.add('flex');
-        }
+    document.getElementById('detailExpenseId').textContent = expense.expense_id;
+    document.getElementById('detailDate').textContent = 
+        new Date(expense.date).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric' 
+        });
+
+    const categoryEl = document.getElementById('detailCategory');
+    categoryEl.textContent = expense.category;
+    categoryEl.className = 
+        'inline-block px-2 py-1 rounded-full text-xs font-semibold ' +
+        (categoryColors[expense.category] || 'bg-gray-100 text-gray-800');
+
+    document.getElementById('detailAmount').textContent =
+        '₱' + Number(expense.amount).toLocaleString();
+
+    document.getElementById('detailVehicle').textContent =
+        expense.vehicle || 'N/A';
+
+    document.getElementById('detailDriver').textContent =
+        expense.driver || 'Unassigned';
+
+    document.getElementById('detailDescription').textContent =
+        expense.description || '-';
+
+    const modal = document.getElementById('expenseModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
 
         function closeExpenseModal() {
             document.getElementById('expenseModal').classList.add('hidden');
@@ -792,17 +834,6 @@ $vehicles = getVehicles();
                 : 'none';
     });
 }
-const categoryMap = {
-    'fuel': 'fuel',
-    'maintenance': 'maintenance',
-    'repairs': 'repairs',
-    'licensing': 'licensing',
-    'miscellaneous': 'misc' // map select value to dataset
-};
-
-const selected = document.getElementById('filterCategory').value.toLowerCase();
-const mappedCategory = categoryMap[selected] || '';
-const matchesCategory = mappedCategory === '' || rowCategory === mappedCategory;
 
 
     </script>
