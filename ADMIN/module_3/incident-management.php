@@ -13,12 +13,13 @@ if (isset($_POST['close_case_id'])) {
 
     $stmt = $conn->prepare("UPDATE incident_cases SET status='Closed', resolution_notes=? WHERE id=?");
     $stmt->bind_param("si", $resolutionNotes, $caseId);
-    if ($stmt->execute()) {
-        echo 'closed';
-    } else {
-        echo 'Error: ' . $stmt->error;
-    }
-    exit;
+if ($stmt->execute()) {
+    echo 'success';
+    exit; // <-- IMPORTANT
+} else {
+    echo 'Execute failed: ' . $stmt->error;
+    exit; // <-- ALSO HERE
+}
 }
 
 
@@ -35,16 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $case_number = 'CASE-' . date('Ymd-His');
 
     $sql = "INSERT INTO incident_cases
-        (case_number, driver_id, vehicle_id, type, severity, `date`, reported_by, location, description, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Under Investigation')";
+    (case_number, driver_id, vehicle_id, type, severity, `date`, reported_by, location, description, attachments, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Under Investigation')";
     $stmt = $conn->prepare($sql);
 
     if (!$stmt) {
         die("Prepare failed: " . $conn->error); // ← this will print the MySQL error
     }
 
-    $stmt->bind_param(
-        "siissssss",
+$stmt->bind_param(
+    "siisssssss",
         $case_number,
         $driver_id,
         $vehicle_id,
@@ -53,19 +54,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $date,
         $reported_by,
         $location,
-        $description
+        $description,
+        $attachments
+
     );
 
-    if ($stmt->execute()) {
-        echo 'success';
-    } else {
-        echo 'Execute failed: ' . $stmt->error;
+$uploadPaths = [];
+
+if (!empty($_FILES['attachments']['name'][0])) {
+    $uploadDir = '../uploads/incidents/'; // <-- your folder
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+
+    foreach ($_FILES['attachments']['tmp_name'] as $key => $tmpName) {
+        $fileName = time() . '_' . basename($_FILES['attachments']['name'][$key]);
+        $targetFile = $uploadDir . $fileName;
+
+        if (move_uploaded_file($tmpName, $targetFile)) {
+            // Store the **relative path** instead of just filename
+            $uploadPaths[] = $targetFile; 
+            // Now it will be like "../uploads/incidents/1770842273_Black.jpg"
+        }
     }
 }
 
+$attachments = implode(',', $uploadPaths); // store in DB
 
+
+
+if ($stmt->execute()) {
+    echo 'success';
+    exit; // <-- IMPORTANT
+} else {
+    echo 'Execute failed: ' . $stmt->error;
+    exit; // <-- ALSO HERE
+}
+}
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -362,25 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-paperclip text-primary-green"></i>
                         Attachments
                     </h4>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-green transition-colors cursor-pointer">
-                            <i class="fas fa-file-image text-4xl text-gray-400 mb-2"></i>
-                            <p class="text-xs text-gray-600">accident_photo1.jpg</p>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-green transition-colors cursor-pointer">
-                            <i class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i>
-                            <p class="text-xs text-gray-600">police_report.pdf</p>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-green transition-colors cursor-pointer">
-                            <i class="fas fa-file-image text-4xl text-gray-400 mb-2"></i>
-                            <p class="text-xs text-gray-600">damage_photo.jpg</p>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 flex items-center justify-center">
-                            <button class="text-primary-green hover:text-dark-green">
-                                <i class="fas fa-plus-circle text-2xl"></i>
-                                <p class="text-xs mt-1">Add File</p>
-                            </button>
-                        </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="modalAttachments">
                     </div>
                 </div>
 
@@ -419,7 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Driver *</label>
-                        <select id="caseDriver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <select name="driver_id" id="caseDriver" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Driver</option>
                             <?php foreach (getDrivers() as $driver): ?>
                                 <option value="<?php echo $driver['user_id']; ?>">
@@ -430,7 +438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                        <select id="caseVehicle" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <select  id="caseVehicle" name="vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                             <option value="">Select Vehicle</option>
                             <?php foreach (getVehicles() as $vehicle): ?>
                                 <option value="<?= $vehicle['id'] ?>">
@@ -495,7 +503,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
                         <p class="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
                         <p class="text-xs text-gray-500">Photos, PDFs, Documents (Max 10MB each)</p>
-                        <input type="file" id="caseAttachments" multiple accept="image/*,.pdf,.doc,.docx" class="hidden">
+                        <input type="file" name="attachments[]" id="caseAttachments" multiple accept="image/*,.pdf,.doc,.docx" class="hidden">
                         <button type="button" onclick="document.getElementById('caseAttachments').click()" class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-200 transition-all">
                             Choose Files
                         </button>
@@ -576,42 +584,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        function viewCaseDetails(incident) {
-            const severityColors = {
-                'High': 'bg-red-100 text-red-800',
-                'Medium': 'bg-yellow-100 text-yellow-800',
-                'Low': 'bg-blue-100 text-blue-800'
-            };
-            const statusColors = {
-                'Under Investigation': 'bg-yellow-100 text-yellow-800',
-                'Pending Review': 'bg-blue-100 text-blue-800',
-                'Resolved': 'bg-green-100 text-green-800',
-                'Closed': 'bg-gray-100 text-gray-800'
-            };
+function viewCaseDetails(incident) {
+    // Fill the modal fields
+    document.getElementById('modalCaseNumber').textContent = incident.case_number;
+    document.getElementById('modalDate').textContent = new Date(incident.date).toLocaleString();
+    document.getElementById('modalSeverity').textContent = incident.severity;
+    document.getElementById('modalStatus').textContent = incident.status;
+    document.getElementById('modalDriver').textContent = incident.driver;
+    document.getElementById('modalVehicle').textContent = incident.vehicle;
+    document.getElementById('modalLocation').textContent = incident.location;
+    document.getElementById('modalType').textContent = incident.type;
+    document.getElementById('modalReportedBy').textContent = incident.reported_by;
+    document.getElementById('modalDescription').textContent = incident.description;
 
-            document.getElementById('modalCaseNumber').textContent = incident.case_number;
-            document.getElementById('modalDate').textContent = new Date(incident.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            document.getElementById('modalDriver').textContent = incident.driver;
-            document.getElementById('modalVehicle').textContent = incident.vehicle;
-            document.getElementById('modalLocation').textContent = incident.location;
-            document.getElementById('modalType').textContent = incident.type;
-            document.getElementById('modalReportedBy').textContent = incident.reported_by;
-            document.getElementById('modalDescription').textContent = incident.description;
-            
-            const severityEl = document.getElementById('modalSeverity');
-            severityEl.textContent = incident.severity;
-            severityEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-semibold ' + severityColors[incident.severity];
-            
-            const statusEl = document.getElementById('modalStatus');
-            statusEl.textContent = incident.status;
-            statusEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-semibold ' + statusColors[incident.status];
+    // Attachments
+    const attachmentContainer = document.querySelector('#modalAttachments');
+    attachmentContainer.innerHTML = '';
 
-            currentCaseId = incident.id;
-            currentCaseNumber = incident.case_number;
-            
-            document.getElementById('viewModal').classList.remove('hidden');
-            document.getElementById('viewModal').classList.add('flex');
-        }
+    const attachments = incident.attachments ? incident.attachments.split(',') : [];
+    if (attachments.length) {
+attachments.forEach(file => {
+    if (!file) return;
+    const ext = file.split('.').pop().toLowerCase();
+    const div = document.createElement('div');
+    div.className = 'border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-green transition-colors cursor-pointer';
+
+    if (['jpg','jpeg','png','gif'].includes(ext)) {
+        div.innerHTML = `<img src="${file}" class="w-full h-20 object-cover mb-1 rounded"><p class="text-xs text-gray-600">${file.split('/').pop()}</p>`;
+    } else if (ext === 'pdf') {
+        div.innerHTML = `<a href="${file}" target="_blank"><i class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i><p class="text-xs text-gray-600">${file.split('/').pop()}</p></a>`;
+    } else if (['doc','docx'].includes(ext)) {
+        div.innerHTML = `<a href="${file}" target="_blank"><i class="fas fa-file-word text-4xl text-blue-400 mb-2"></i><p class="text-xs text-gray-600">${file.split('/').pop()}</p></a>`;
+    } else {
+        div.innerHTML = `<a href="${file}" target="_blank"><i class="fas fa-file text-4xl text-gray-400 mb-2"></i><p class="text-xs text-gray-600">${file.split('/').pop()}</p></a>`;
+    }
+
+    attachmentContainer.appendChild(div);
+});
+    } else {
+        attachmentContainer.innerHTML = '<p class="text-xs text-gray-500">No attachments</p>';
+    }
+
+    // **Show the modal**
+    const modal = document.getElementById('viewModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
 
         function closeViewModal() {
             document.getElementById('viewModal').classList.add('hidden');
@@ -698,7 +716,8 @@ function confirmCloseCase() {
         function saveNewCase(event) {
     event.preventDefault();
 
-    const formData = new FormData();
+    const form = document.getElementById('addCaseForm');
+    const formData = new FormData(form);
     formData.append('driver_id', document.getElementById('caseDriver').value);
     formData.append('vehicle', document.getElementById('caseVehicle').value);
     formData.append('type', document.getElementById('caseType').value);
@@ -730,6 +749,8 @@ function confirmCloseCase() {
         console.error(err);
     });
 }
+
+
     </script>
 </body>
 </html>

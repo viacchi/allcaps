@@ -1,76 +1,16 @@
 <?php
 include '../includes/functions.php';
-$expenses = getFuelExpenses(); // your function to fetch fuel expenses
+
+$loggedInUser = $_SESSION['user_name'] ?? ''; // get the logged-in user's name from session
+$department = 'Logistic 2'; // fixed value
+
+$expenses = getTransportExpenses();
 $drivers  = getDrivers();      // function to fetch drivers
 $vehicles = getVehicles();     // function to fetch vehicles
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // ==== Fuel Expense Form ====
-    if (isset($_POST['vehicle_id'])) {
 
-        $vehicle_id = intval($_POST['vehicle_id'] ?? 0);
-        $date       = $_POST['date'] ?? null;
-        $liters     = floatval($_POST['liters'] ?? 0);
-        $cost       = floatval($_POST['cost'] ?? 0);
-        $driver_id  = intval($_POST['driver_id'] ?? 0);
-        $fuel_type  = $_POST['fuel_type'] ?? 'Gasoline';
-        $status     = 'Pending';
 
-        if (!$vehicle_id || !$date || $liters <= 0 || $cost <= 0 || !$driver_id) {
-            die('❌ Missing required fields');
-        }
-
-        // Handle file upload
-        $receipt_path = null;
-        if (!empty($_FILES['receipt_file']['name'])) {
-            $uploadDir = 'uploads/fuel_receipts/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-
-            $ext = pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION);
-            $fileName = time() . '_' . uniqid() . '.' . $ext;
-            $targetFile = $uploadDir . $fileName;
-
-            if (move_uploaded_file($_FILES['receipt_file']['tmp_name'], $targetFile)) {
-                $receipt_path = $uploadDir . $fileName;
-            }
-        }
-
-        $sql = "INSERT INTO fuel_expenses (vehicle_id, date, liters, cost, driver_id, receipt_path, fuel_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("isddisss", $vehicle_id, $date, $liters, $cost, $driver_id, $receipt_path, $fuel_type, $status);
-        $stmt->execute();
-        $stmt->close();
-
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
-
-    // ==== Request Expense Form ====
-    } elseif (isset($_POST['request_expense'])) {
-
-        $expense_type = $_POST['expense_type'] ?? null;
-        $requested_by = $_POST['requested_by'] ?? null;
-        $request_date = $_POST['request_date'] ?? null;
-        $amount       = floatval($_POST['amount'] ?? 0);
-        $description  = $_POST['description'] ?? '';
-        $contact      = $_POST['contact'] ?? '';
-        $status       = $_POST['status'] ?? 'Pending';
-        $department   = $_POST['department'] ?? 'Logistic 2';
-
-        if (!$expense_type || !$requested_by || !$request_date || $amount <= 0) {
-            die('❌ Missing required fields in request form');
-        }
-
-        $sql = "INSERT INTO expense_requests (expense_type, requested_by, request_date, amount, description, contact, status, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssissss", $expense_type, $requested_by, $request_date, $amount, $description, $contact, $status, $department);
-        $stmt->execute();
-        $stmt->close();
-
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
-    }
-}
 
 
 ?>
@@ -180,9 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
+
+            
             <!-- Fuel Expense Table -->
             <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div class="bg-gray-50 border-b border-gray-200 px-5 py00-4">
+                <div class="bg-gray-50 border-b border-gray-200 px-5 py-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <h2 class="text-lg font-bold text-gray-900"> Records</h2>
                         <div class="flex flex-col sm:flex-row gap-3">
@@ -198,14 +140,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <button class="px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300 inline-flex items-center justify-center gap-2 whitespace-nowrap" onclick="openAddExpenseModal()">
-                                <i class="fas fa-plus"></i> Add Expense
-                            </button>
-                              <button
-                                  class="px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition inline-flex items-center gap-2"
-                                  onclick="openAddEntryModal()">
-                                  <i class="fas fa-plus"></i> Request Fuel Expense
-                              </button>     
+                            <div class="flex flex-col sm:flex-row gap-3">
+
+                        <button
+                        class="px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition inline-flex items-center gap-2"
+                        onclick="openAddExpenseModal()">
+                        <i class="fas fa-plus"></i> Add Expense
+                        </button>
+                        <button
+    class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-semibold hover:bg-blue-700 transition inline-flex items-center gap-2"
+    onclick="openEntryModal()">
+    <i class="fas fa-file-invoice"></i> Request Expense
+</button>
+                                    </div>
+
 
                         </div>
                     </div>
@@ -218,10 +166,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Vehicle</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Liters</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Cost</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Cost/Liter</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Expense Type</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Amount</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Driver</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Requested By</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Fuel Type</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Actions</th>
@@ -229,46 +177,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
         <tbody id="tableBody">
-                            <?php foreach ($expenses as $expense): ?>
-    <?php 
-        $fuelType = $expense['fuel_type'] ?? '-'; // default '-' if not set
-        $status = $expense['status'] ?? 'Pending'; // default 'Pending'
-    ?>
-    <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-        <td class="px-5 py-4 text-sm font-semibold text-primary-green"><?php echo $expense['vehicle']; ?></td>
-        <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($expense['date'])); ?></td>
-        <td class="px-5 py-4 text-sm text-gray-700"><?php echo number_format($expense['liters'], 2); ?> L</td>
-        <td class="px-5 py-4 text-sm text-gray-700 font-medium">₱<?php echo number_format($expense['cost'], 2); ?></td>
-        <td class="px-5 py-4 text-sm text-gray-700">₱<?php echo $expense['liters'] > 0 ? number_format($expense['cost'] / $expense['liters'], 2) : '0.00'; ?></td>
-        <td class="px-5 py-4 text-sm text-gray-700"><?php echo $expense['driver']; ?></td>
-        <td class="px-5 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($fuelType); ?></td>
-        <td class="px-5 py-4 text-sm">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold
-            <?php
-            echo match($status) {
-                'Pending' => 'bg-yellow-100 text-yellow-800',
-                'Under Review' => 'bg-blue-100 text-blue-800',
-                'Approved' => 'bg-green-100 text-green-800',
-                'Rejected' => 'bg-red-100 text-red-800',
-                default => 'bg-gray-100 text-gray-800'
-            };
-            ?>">
-            <?= htmlspecialchars($status) ?>
-            </span>
-        </td>
-        <td class="px-5 py-4 text-sm">
-            <div class="flex gap-2">
-                <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" 
-                    onclick='viewExpense(<?= json_encode($expense) ?>)'>
-                    <i class="fas fa-eye"></i> View
-                </button>
-                <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" 
-                    onclick="editExpense(<?php echo $expense['id']; ?>)">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-            </div>
-        </td>
-    </tr>
+<?php foreach ($expenses as $expense): ?>
+<tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+
+    <td class="px-5 py-4 text-sm font-semibold text-primary-green">
+        <?= $expense['vehicle']; ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm text-gray-700">
+        <?= date('M d, Y', strtotime($expense['request_date'])); ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm text-gray-700">
+        <?= $expense['expense_type']; ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm text-gray-700 font-medium">
+        ₱<?= number_format($expense['amount'], 2); ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm text-gray-700">
+        <?= $expense['driver']; ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm text-gray-700">
+        <?= htmlspecialchars($expense['requested_by']); ?>
+    </td>
+
+    <td class="px-5 py-4 text-sm">
+        <span class="px-3 py-1 rounded-full text-xs font-semibold
+        <?php
+        echo match($expense['status']) {
+            'Pending' => 'bg-yellow-100 text-yellow-800',
+            'Approved' => 'bg-green-100 text-green-800',
+            'Rejected' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-800'
+        };
+        ?>">
+        <?= $expense['status']; ?>
+        </span>
+    </td>
+
+    <td class="px-5 py-4 text-sm">
+        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all"
+            onclick='viewExpense(<?= json_encode($expense) ?>)'>
+            View
+        </button>
+    </td>
+
+</tr>
 <?php endforeach; ?>
 
                         </tbody>
@@ -292,96 +249,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="expenseModal">
         <div class="bg-white rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center p-6 border-b border-gray-200">
-                <h3 class="text-xl font-bold text-gray-900" id="modalTitle">Add Fuel Expense</h3>
+                <h3 class="text-xl font-bold text-gray-900" id="modalTitle">
+                    Add Expense
+                </h3>
                 <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <form id="expenseForm" method="POST" enctype="multipart/form-data" class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
-                    <select name="vehicle_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
-                        <option value="">Select Vehicle</option>
-                        <?php foreach (getVehicles() as $vehicle): ?>
-                            <option value="<?= $vehicle['id'] ?>">
-                                <?= $vehicle['plate'] ?> - <?= $vehicle['model'] ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Date *</label>
-                        <input name="date" type="date" id="expenseDate" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                    </div>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Liters *</label>
-                        <input name="liters" type="number" id="liters" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Total Cost (₱) *</label>
-                        <input name="cost" type="number" id="totalCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="0.00" required>
-                    </div>
-                </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Driver *</label>
-                    <select name="driver_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
-                        <option value="">Select Driver</option>
-                        <?php foreach (getDrivers() as $driver): ?>
-                            <option value="<?= $driver['user_id'] ?>">
-                                <?= $driver['full_name'] ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+<form id="expenseForm" method="POST" enctype="multipart/form-data" class="p-6">
+    <input type="hidden" name="expense_id" value="">
 
-                 <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Fuel Type</label>
-            <select id="entryFuelType" name="fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-              <option value="">Select</option>
-              <option>Gasoline</option>
-              <option>Diesel</option>
-              <option>Hybrid</option>
-              <option>Bio-Diesel</option>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <!-- Expense Type -->
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Expense Type *</label>
+            <select name="expense_type" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+                <option value="">Select type</option>
+                <option value="Fuel">Fuel</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Repair">Repair</option>
+                <option value="Parts">Parts</option>
+                <option value="Other">Other</option>
             </select>
-          </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Gas Station</label>
-                    <input type="text" id="gasStation" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="e.g., Petron, Shell">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Receipt/Invoice Number</label>
-                    <input type="text" id="receiptNumber" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Receipt number">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Upload Receipt</label>
-                    <input type="file" name="receipt_file" id="receiptFile" accept="image/*,.pdf" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
-                    <textarea id="notes" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Additional notes..." rows="3"></textarea>
-                </div>
-
-                <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button type="button" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeExpenseModal()">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300 inline-flex items-center justify-center gap-2">
-                        <i class="fas fa-save"></i> Save Expense
-                    </button>
-                </div>
-            </form>
         </div>
+
+        <!-- Vehicle -->
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Vehicle *</label>
+            <select name="vehicle_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+                <option value="">Select Vehicle</option>
+                <?php foreach ($vehicles as $vehicle): ?>
+                    <option value="<?= $vehicle['id'] ?>">
+                        <?= $vehicle['plate'] ?> - <?= $vehicle['model'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <!-- Driver -->
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Driver *</label>
+            <select name="driver_id" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+                <option value="">Select Driver</option>
+                <?php foreach ($drivers as $driver): ?>
+                    <option value="<?= $driver['id'] ?>">
+                        <?= $driver['full_name'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <!-- Date -->
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Date *</label>
+            <input type="date" name="request_date" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+        </div>
+
+        <!-- Amount -->
+        <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Amount (₱) *</label>
+            <input type="number" name="amount" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
+        </div>
+
     </div>
+
+    <!-- Description -->
+    <div class="mt-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+        <textarea name="description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"></textarea>
+    </div>
+
+    <!-- Receipt Upload -->
+    <div class="mt-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Upload Receipt</label>
+        <input type="file" name="receipt_file" accept="image/*,.pdf" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+    </div>
+
+    <!-- Requested By -->
+    <input type="hidden" name="requested_by" value="<?= htmlspecialchars($loggedInUser) ?>">
+
+    <!-- Status (Auto default Pending) -->
+    <input type="hidden" name="status" value="Pending">
+
+    <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button type="button"
+            onclick="closeExpenseModal()"
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300">
+            Cancel
+        </button>
+
+        <button type="submit"
+            class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green">
+            Save Expense
+        </button>
+    </div>
+</form>
+            </div>
+                        </div>
 
     <!-- View Expense Details Modal -->
     <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="viewModal">
@@ -443,90 +411,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     
 <div id="entryModal"
-      class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+     class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
   <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-          <h3 class="text-xl font-bold text-gray-900">Request Expense</h3>
-          <button type="button" onclick="closeEntryModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
-              <i class="fas fa-times"></i>
-          </button>
+    <!-- Header -->
+    <div class="flex justify-between items-center p-6 border-b border-gray-200">
+      <h3 class="text-xl font-bold text-gray-900">Request Expense</h3>
+      <button type="button" onclick="closeEntryModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form id="entryForm" class="p-6 space-y-4" method="POST">
+      <input type="hidden" name="request_expense" value="1">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Expense Type</label>
+          <select id="entryType" name="expense_type" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+            <option value="">Select type</option>
+            <option value="Fuel">Fuel</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Repair">Repair</option>
+            <option value="Parts">Parts</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+<div>
+  <label class="block text-sm font-semibold text-gray-700 mb-2">Requested By</label>
+  <input type="text" name="requested_by" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" value="<?= htmlspecialchars($loggedInUser) ?>" readonly>
+</div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+          <input type="date" id="entryDate" name="request_date" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+        </div>
+
+<div>
+  <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+  <input type="text" name="department" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" value="<?= $department ?>" readonly>
+</div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Amount (₱)</label>
+          <input type="number" id="entryAmount" name="amount" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="e.g. 1500.00" required>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Description / Purpose</label>
+          <input type="text" id="entryPurpose" name="description" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="e.g. Change oil, brake issue">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Contact</label>
+          <input type="tel" id="entryContact" name="contact" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="09xxxxxxxxx">
+        </div>
       </div>
 
-      <form id="entryForm" class="space-y-4" method="POST">
-          <input type="hidden" name="request_expense" value="1">
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Expense Type</label>
-                  <select id="entryType" name="expense_type"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
-                      <option value="">Select type</option>
-                      <option value="Fuel">Fuel</option>
-                      <option value="Maintenance">Maintenance</option>
-                      <option value="Repair">Repair</option>
-                      <option value="Parts">Parts</option>
-                      <option value="Other">Other</option>
-                  </select>
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Requested By</label>
-                  <input type="text" id="entryRequest" name="requested_by"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="Full name" required>
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                  <input type="date" id="entryDate" name="request_date"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" required>
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
-                  <input type="text" name="department" value="Logistic 2"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" readonly>
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Amount (₱)</label>
-                  <input type="number" id="entryAmount" name="amount" step="0.01"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="e.g. 1500.00" required>
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Description / Purpose</label>
-                  <input type="text" id="entryPurpose" name="description"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="e.g. Change oil, brake issue">
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Contact</label>
-                  <input type="tel" id="entryContact" name="contact"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="09xxxxxxxxx">
-              </div>
-
-              <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                  <select id="entryStatus" name="status"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                      <option value="Pending" selected>Pending</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Rejected">Rejected</option>
-                  </select>
-              </div>
-          </div>
-
-          <div class="flex gap-3 justify-end pt-4">
-              <button type="button" onclick="closeEntryModal()"
-                  class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md font-semibold">Cancel</button>
-              <button type="submit"
-                  class="px-4 py-2 bg-primary-green text-white rounded-md font-semibold">Submit Request</button>
-          </div>
-      </form>
+      <!-- Footer Buttons -->
+      <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button type="button" onclick="closeEntryModal()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300">Submit Request</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -534,65 +482,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
     
-function saveEntry(event) {
-    event.preventDefault();
-
-    const data = {
-        expenseType: document.getElementById("entryType").value,
-        requestedBy: document.getElementById("entryRequest").value,
-        date: document.getElementById("entryDate").value,
-        amount: document.getElementById("entryAmount").value,
-        description: document.getElementById("entryPurpose").value,
-        contact: document.getElementById("entryContact").value,
-        status: document.getElementById("entryStatus").value,
-        department: "Logistic 2"
-    };
-
-    console.log("Expense Request:", data);
-    closeEntryModal();
-}
 
     
         // Temporary storage (demo only)
-    let entries = [];
+function openEntryModal() {
+    const modal = document.getElementById('entryModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
 
-    function openAddEntryModal() {
-        document.getElementById("entryModal").classList.remove("hidden");
-        document.getElementById("entryModalTitle").innerText = "Request Fuel Expense";
-        document.getElementById("entryForm").reset();
-        document.getElementById("entryIndex").value = "";
+function closeEntryModal() {
+    const modal = document.getElementById('entryModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+
+    function openAddExpenseModal() {
+        const modal = document.getElementById('expenseModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
 
-    function closeEntryModal() {
-        document.getElementById("entryModal").classList.add("hidden");
-    }
-
-    function saveEntry(event) {
-        event.preventDefault();
-
-        const data = {
-            id: document.getElementById("entryID").value,
-            requestedBy: document.getElementById("entryRequest").value,
-            date: document.getElementById("entryDate").value,
-            amount: document.getElementById("entryAmount").value,
-            purpose: document.getElementById("entryPurpose").value,
-            contact: document.getElementById("entryContact").value,
-            status: document.getElementById("entryStatus").value,
-        };
-
-        const index = document.getElementById("entryIndex").value;
-
-        if (index === "") {
-            // Add new
-            entries.push(data);
-        } else {
-            // Update existing
-            entries[index] = data;
-        }
-
-        console.log("Saved Entries:", entries); // for testing
-
-        closeEntryModal();
+    function closeExpenseModal() {
+        const modal = document.getElementById('expenseModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 
         function filterTable() {
@@ -611,37 +526,23 @@ function saveEntry(event) {
             });
         }
 
-        function openAddExpenseModal() {
-            document.getElementById('modalTitle').textContent = 'Add Fuel Expense';
-            document.getElementById('expenseForm').reset();
-            document.getElementById('expenseModal').classList.remove('hidden');
-            document.getElementById('expenseModal').classList.add('flex');
-        }
 
-        function closeExpenseModal() {
-            document.getElementById('expenseModal').classList.add('hidden');
-            document.getElementById('expenseModal').classList.remove('flex');
-            document.getElementById('expenseForm').reset();
-        }
 
 
 function viewExpense(expense) {
     document.getElementById('viewVehicle').textContent = expense.vehicle;
-    document.getElementById('viewDate').textContent = new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    document.getElementById('viewLiters').textContent = parseFloat(expense.liters).toFixed(2) + ' L';
-    document.getElementById('viewCost').textContent = '₱' + parseFloat(expense.cost).toFixed(2);
-    document.getElementById('viewCostPerLiter').textContent = '₱' + (expense.liters > 0 ? (expense.cost / expense.liters).toFixed(2) : '0.00');
+    document.getElementById('viewDate').textContent =
+        new Date(expense.request_date).toLocaleDateString();
+
+    document.getElementById('viewLiters').textContent = expense.expense_type;
+    document.getElementById('viewCost').textContent = '₱' + parseFloat(expense.amount).toFixed(2);
     document.getElementById('viewDriver').textContent = expense.driver;
 
     const viewReceipt = document.getElementById('viewReceipt');
+
     if (expense.receipt_path) {
-        if (/\.(jpg|jpeg|png|gif)$/i.test(expense.receipt_path)) {
-            viewReceipt.innerHTML = `<img src="../${expense.receipt_path}" alt="Receipt" class="max-w-full max-h-64 rounded border">`;
-        } else if (/\.(pdf)$/i.test(expense.receipt_path)) {
-            viewReceipt.innerHTML = `<a href="../${expense.receipt_path}" target="_blank" class="text-blue-600 underline">View PDF</a>`;
-        } else {
-            viewReceipt.textContent = 'File uploaded';
-        }
+        viewReceipt.innerHTML =
+            `<a href="../${expense.receipt_path}" target="_blank" class="text-blue-600 underline">View Receipt</a>`;
     } else {
         viewReceipt.innerHTML = '<em>No file uploaded</em>';
     }
@@ -655,17 +556,27 @@ function viewExpense(expense) {
             document.getElementById('viewModal').classList.remove('flex');
         }
 
-        function editExpense(id) {
-            document.getElementById('modalTitle').textContent = 'Edit Fuel Expense';
-            // In a real application, fetch expense details and populate form
-            document.getElementById('expenseModal').classList.remove('hidden');
-            document.getElementById('expenseModal').classList.add('flex');
-        }
+function editExpense(expense) {
+    document.getElementById('modalTitle').textContent = 'Edit Expense';
+
+    const form = document.getElementById('expenseForm');
+
+    form.expense_id.value = expense.id;
+    form.expense_type.value = expense.expense_type;
+    form.vehicle_id.value = expense.vehicle_id;
+    form.driver_id.value = expense.driver_id;
+    form.request_date.value = expense.request_date;
+    form.amount.value = expense.amount;
+    form.description.value = expense.description || '';
+
+    document.getElementById('expenseModal').classList.remove('hidden');
+    document.getElementById('expenseModal').classList.add('flex');
+}
 
         // Close modals when clicking outside
-        document.getElementById('expenseModal').addEventListener('click', function(e) {
+        document.getElementById('entryModal').addEventListener('click', function (e) {
             if (e.target === this) {
-                closeExpenseModal();
+                closeEntryModal();
             }
         });
 
