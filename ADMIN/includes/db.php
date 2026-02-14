@@ -1,7 +1,7 @@
 <?php
 $host = "localhost";
-$user = "log2_logtwo";
-$pass = "log2@";
+$user = "root";
+$pass = "";
 $dbname = "log2_logtwo";
 
 $conn = mysqli_connect($host, $user, $pass, $dbname);

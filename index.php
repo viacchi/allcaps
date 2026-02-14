@@ -19,6 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         // TEMPORARY: plain text password check
         if ($password === $user['password']) {
+$_SESSION['user_id'] = $user['user_id']; // <-- this is required
 
         $_SESSION['user'] = [
             'user_id'   => $user['user_id'],
