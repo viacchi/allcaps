@@ -1,5 +1,12 @@
 <?php
 include '../includes/functions.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    echo "<pre>";
+    print_r($_POST);
+    echo "</pre>";
+}
+
 $trips = getTripPerformanceReports();
 $stats = getTripStatistics();
 $drivers = getAvailableDrivers();
@@ -44,6 +51,49 @@ foreach ($driverTotals as $driver => $totalMins) {
 // Convert to JSON for JS
 $driverLabelsJson = json_encode($driverLabels);
 $driverDurationsJson = json_encode($driverDurations);
+
+if (isset($_POST['complete_trip'])) {
+
+    if (!isset($_POST['trip_id'])) {
+        die("Trip ID missing.");
+    }
+
+    $trip_id = intval($_POST['trip_id']);
+
+    if (!empty($_FILES['proof_image']['name'])) {
+
+        $targetDir = "../uploads/proofs/";
+
+        // Make sure folder exists
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+
+        $fileName = time() . "_" . basename($_FILES["proof_image"]["name"]);
+        $targetFilePath = $targetDir . $fileName;
+
+        if (move_uploaded_file($_FILES["proof_image"]["tmp_name"], $targetFilePath)) {
+
+            $stmt = $conn->prepare("UPDATE trips 
+                                    SET proof_image=?, 
+                                        proof_uploaded_at=NOW(),
+                                        status='Completed'
+                                    WHERE trip_id=?");
+
+            if ($stmt) {
+                $stmt->bind_param("si", $fileName, $trip_id);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                die("Prepare failed: " . $conn->error);
+            }
+
+        } else {
+            die("File upload failed.");
+        }
+    }
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -240,7 +290,6 @@ $driverDurationsJson = json_encode($driverDurations);
                                 <option value="">All Status</option>
                                 <option value="On-Time">On-Time</option>
                                 <option value="Delayed">Delayed</option>
-                                <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                     </div>
@@ -270,8 +319,7 @@ $driverDurationsJson = json_encode($driverDurations);
                                 $statusColors = [
                                     'Pending' => 'bg-gray-100 text-gray-800',
                                     'On-Time' => 'bg-green-100 text-green-800',
-                                    'Delayed' => 'bg-yellow-100 text-yellow-800',
-                                    'Cancelled' => 'bg-red-100 text-red-800'
+                                    'Delayed' => 'bg-yellow-100 text-yellow-800'
                                 ];
                             ?>
                             <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
@@ -305,11 +353,33 @@ $driverDurationsJson = json_encode($driverDurations);
                                         <?php echo $trip['status']; ?>
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 text-sm">
-                                    <button class="px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all inline-flex items-center gap-1.5" onclick='viewReport(<?php echo json_encode($trip); ?>)'>
-                                        <i class="fas fa-eye"></i> View Report
-                                    </button>
-                                </td>
+<td class="px-5 py-4 text-sm">
+
+    <!-- VIEW BUTTON -->
+    <button 
+        type="button"
+        class="mb-2 px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all"
+        onclick='viewReport(<?php echo json_encode($trip); ?>)'>
+        <i class="fas fa-eye"></i> View
+    </button>
+
+    <!-- COMPLETE TRIP FORM -->
+    <form method="POST" enctype="multipart/form-data">
+
+        <input type="hidden" name="trip_id" value="<?php echo $trip['trip_id']; ?>">
+
+        <input type="file" name="proof_image" accept="image/*" required
+               class="block w-full text-xs border rounded p-1 mb-1">
+
+        <button type="submit"
+                name="complete_trip"
+                class="w-full px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+            Complete Trip
+        </button>
+
+    </form>
+
+</td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -445,6 +515,12 @@ $driverDurationsJson = json_encode($driverDurations);
                     </div>
                 </div>
 
+                <div class="mt-4">
+    <div class="text-sm font-semibold text-gray-600 mb-2">Proof of Completion:</div>
+    <img id="proofImage" class="w-full max-h-80 object-cover rounded-lg border">
+</div>
+
+
                 <!-- Fuel Consumption & Expenses -->
                 <div class="mb-6">
                     <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -569,10 +645,10 @@ $driverDurationsJson = json_encode($driverDurations);
         new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-                labels: ['On-Time', 'Delayed', 'Cancelled'],
+                labels: ['On-Time', 'Delayed'],
                 datasets: [{
-                    data: [<?php echo $stats['on_time_trips']; ?>, <?php echo $stats['delayed_trips']; ?>, <?php echo $stats['cancelled_trips']; ?>],
-                    backgroundColor: ['#10B981', '#F59E0B', '#EF4444']
+                    data: [<?php echo $stats['on_time_trips']; ?>, <?php echo $stats['delayed_trips']; ?>],
+                    backgroundColor: ['#10B981', '#F59E0B',]
                 }]
             },
             options: {
@@ -617,36 +693,6 @@ $driverDurationsJson = json_encode($driverDurations);
         });
 
         // Average Duration Chart
-        const durationCtx = document.getElementById('durationChart').getContext('2d');
-        new Chart(durationCtx, {
-            type: 'bar',
-            data: {
-                labels: ['John S.', 'Jane D.', 'Mike J.', 'David B.', 'Sarah W.', 'Emma W.'],
-                datasets: [{
-                    label: 'Hours',
-                    data: [2.2, 1.8, 1.5, 2.0, 1.6, 1.4],
-                    backgroundColor: '#2D7A5C'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Hours'
-                        }
-                    }
-                }
-            }
-        });
 
         function filterTable() {
             const searchInput = document.getElementById('searchInput').value.toLowerCase();
@@ -693,12 +739,7 @@ $driverDurationsJson = json_encode($driverDurations);
                 statusIcon.className = 'fas fa-exclamation-triangle text-3xl text-yellow-600';
                 statusText.textContent = 'Delayed Delivery';
                 statusSubtext.textContent = 'Arrived later than scheduled';
-            } else {
-                statusBanner.className = 'mb-6 p-4 rounded-lg bg-red-50 text-red-800';
-                statusIcon.className = 'fas fa-times-circle text-3xl text-red-600';
-                statusText.textContent = 'Cancelled Trip';
-                statusSubtext.textContent = 'Trip was cancelled';
-            }
+            } 
 
             document.getElementById('onTimePercentage').textContent = trip.on_time_percentage + '%';
 
@@ -762,6 +803,14 @@ $driverDurationsJson = json_encode($driverDurations);
             // Show modal
             document.getElementById('reportModal').classList.remove('hidden');
             document.getElementById('reportModal').classList.add('flex');
+            
+
+            if (trip.proof_image) {
+                document.getElementById('proofImage').src = '../uploads/proofs/' + trip.proof_image;
+            } else {
+                document.getElementById('proofImage').src = 'https://via.placeholder.com/400x250?text=No+Proof+Uploaded';
+            }
+
         }
 
         function closeReportModal() {

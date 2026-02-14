@@ -60,11 +60,15 @@ function getAvailableDrivers() {
 // 5️⃣ TRIPS / DISPATCH ASSIGNMENTS
 function getTrips() {
     global $conn;
-    $sql = "SELECT t.id, v.vehicle, v.model, v.type, d.name AS driver, t.route, t.dispatch_date, t.return_date, t.status AS availability, v.lat, v.lng
-            FROM trips t
-            JOIN vehicles v ON t.vehicle_id = v.id
-            LEFT JOIN drivers d ON t.driver_id = d.id
-            ORDER BY t.dispatch_date DESC";
+    $sql = "
+        SELECT t.id, t.trip_code, t.route, t.dispatch_date, t.return_date, t.status,
+               v.plate AS vehicle, v.model AS vehicle_model,
+               d.name AS driver
+        FROM trips t
+        LEFT JOIN vehicles v ON t.vehicle_id = v.id
+        LEFT JOIN drivers d ON t.driver_id = d.id
+        ORDER BY t.dispatch_date DESC
+    ";
     $res = $conn->query($sql);
     return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
@@ -498,8 +502,9 @@ function getIncidentCases() {
             ic.location,
             ic.status,
             ic.reported_by,
+            ic.attachments,  -- <--- add this line
 
-            CONCAT(full_name) AS driver,
+            CONCAT(u.full_name) AS driver,
             IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle
 
         FROM incident_cases ic
@@ -699,21 +704,26 @@ function getTransportExpenses() {
 
     $sql = "
         SELECT
-            te.expense_id,
-            te.date,
-            te.category,
-            te.amount,
-            te.description,
+            er.id,
+            er.expense_type,
+            er.requested_by,
+            er.request_date,
+            er.amount,
+            er.description,
+            er.receipt_path,
+            er.status,
+            er.driver_id,
+            er.vehicle_id,
 
-            IFNULL(v.plate, 'N/A') AS vehicle,
-            IFNULL(CONCAT(u.full_name), 'N/A') AS driver
+            IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle,
+            IFNULL(u.full_name, 'N/A') AS driver
 
-        FROM transport_expenses te
-        LEFT JOIN vehicles v ON te.vehicle_id = v.id
-        LEFT JOIN drivers d ON te.driver_id = d.id
+        FROM expense_requests er
+        LEFT JOIN vehicles v ON er.vehicle_id = v.id
+        LEFT JOIN drivers d ON er.driver_id = d.id
         LEFT JOIN users u ON d.user_id = u.user_id
 
-        ORDER BY te.date DESC
+        ORDER BY er.request_date DESC
     ";
 
     $result = $conn->query($sql);
@@ -768,12 +778,24 @@ function getTransportCostSummary() {
  // 3️⃣ Get fuel cost trends per vehicle
 function getFuelConsumptionTrends() {
     global $conn;
-    $sql = "SELECT v.plate, v.vehicle, SUM(fe.liters) AS total_liters, SUM(fe.cost) AS total_cost
-            FROM vehicles v
-            LEFT JOIN fuel_expenses fe ON fe.vehicle_id = v.id
-            GROUP BY v.id
-            ORDER BY total_cost DESC";
+
+    $sql = "
+        SELECT 
+            DATE_FORMAT(date, '%b %Y') AS month,
+            SUM(liters) AS consumption,
+            SUM(cost) AS cost
+        FROM fuel_expenses
+        WHERE status = 'Approved'
+        GROUP BY YEAR(date), MONTH(date)
+        ORDER BY YEAR(date), MONTH(date)
+    ";
+
     $result = $conn->query($sql);
+
+    if (!$result) {
+        die('SQL ERROR in getFuelConsumptionTrends(): ' . $conn->error);
+    }
+
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
@@ -850,19 +872,19 @@ function getReservations() {
     $sql = "
         SELECT
             r.id,
-            v.plate AS vehicle,
+            IFNULL(v.plate, 'N/A') AS vehicle,
             v.model,
             v.type,
-            u.full_name AS driver,
-            r.reserved_date,
+            IFNULL(u.full_name, 'N/A') AS driver,
+            r.start_datetime,
+            r.end_datetime,
             r.purpose,
             r.notes,
             r.status
         FROM reservations r
         LEFT JOIN vehicles v ON r.vehicle_id = v.id
-        LEFT JOIN drivers d ON r.driver_id = d.id
-        LEFT JOIN users u ON d.user_id = u.user_id
-        ORDER BY r.reserved_date DESC
+        LEFT JOIN users u ON r.driver_id = u.user_id
+        ORDER BY r.start_datetime DESC
     ";
 
     $result = $conn->query($sql);
@@ -891,6 +913,65 @@ function updateReservationStatus($reservationId, $status) {
     $stmt->bind_param("si", $status, $reservationId);
     return $stmt->execute();
 }
+function isVehicleAvailable($vehicle_id, $start_datetime, $end_datetime) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as cnt FROM reservations
+        WHERE vehicle_id = ?
+        AND status IN ('Pending', 'Approved', 'In Use')
+        AND (
+            (start_datetime <= ? AND end_datetime >= ?)
+            OR
+            (start_datetime <= ? AND end_datetime >= ?)
+            OR
+            (start_datetime >= ? AND end_datetime <= ?)
+        )
+    ");
+
+    $stmt->bind_param(
+        "issssss",
+        $vehicle_id,
+        $start_datetime, $start_datetime,
+        $end_datetime, $end_datetime,
+        $start_datetime, $end_datetime
+    );
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+
+    return $result['cnt'] == 0; // available if count = 0
+}
+
+function isDriverAvailable($driver_id, $start, $end) {
+    global $conn;
+
+    // Make sure driver_id is integer
+    $driver_id = intval($driver_id);
+
+    $sql = "SELECT COUNT(*) AS cnt 
+            FROM reservations
+            WHERE driver_id = ?
+              AND (
+                  (start_datetime <= ? AND end_datetime >= ?) OR
+                  (start_datetime <= ? AND end_datetime >= ?) OR
+                  (start_datetime >= ? AND end_datetime <= ?)
+              )";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("issssss", 
+        $driver_id, 
+        $start, $start, 
+        $end, $end, 
+        $start, $end
+    );
+
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+
+    // 0 means available
+    return $res['cnt'] == 0;
+}
+
 
 // Create new reservation
 function createReservation($data) {
@@ -898,16 +979,319 @@ function createReservation($data) {
 
     $vehicle_id = $data['vehicle_id'];
     $driver_id = $data['driver_id'] ?: NULL; // optional
-    $reserved_date = $data['reserved_date'];
+    $start_datetime = $data['start_datetime']; // e.g., '2026-02-14 08:00:00'
+    $end_datetime = $data['end_datetime'];     // e.g., '2026-02-14 12:00:00'
     $purpose = $data['purpose'];
     $notes = $data['notes'];
 
+    // 1️⃣ Check vehicle availability
+    if (!isVehicleAvailable($vehicle_id, $start_datetime, $end_datetime)) {
+        return ['success' => false, 'message' => 'Vehicle is not available during the selected time.'];
+    }
+
+    // 2️⃣ Check driver availability if driver assigned
+    if ($driver_id && !isDriverAvailable($driver_id, $start_datetime, $end_datetime)) {
+        return ['success' => false, 'message' => 'Driver is not available during the selected time.'];
+    }
+
+    // 3️⃣ Insert reservation
     $stmt = $conn->prepare("
         INSERT INTO reservations 
-        (vehicle_id, driver_id, reserved_date, purpose, notes) 
-        VALUES (?, ?, ?, ?, ?)
+        (vehicle_id, driver_id, start_datetime, end_datetime, purpose, notes) 
+        VALUES (?, ?, ?, ?, ?, ?)
     ");
-    $stmt->bind_param("iisss", $vehicle_id, $driver_id, $reserved_date, $purpose, $notes);
+    $stmt->bind_param("iissss", $vehicle_id, $driver_id, $start_datetime, $end_datetime, $purpose, $notes);
+
+    if ($stmt->execute()) {
+        return ['success' => true, 'id' => $stmt->insert_id, 'message' => 'Reservation created successfully.'];
+    } else {
+        return ['success' => false, 'message' => 'Database error: ' . $stmt->error];
+    }
+}
+
+// Get a single fuel expense by ID
+function getFuelExpenseById($id) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT * FROM fuel_expenses WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}
+
+function updateFuelExpense($data) {
+    global $conn;
+    $stmt = $conn->prepare("
+        UPDATE fuel_expenses
+        SET vehicle_id=?, driver_id=?, date=?, liters=?, cost=?, fuel_type=?, gas_station=?, receipt_number=?, notes=?
+        WHERE id=?
+    ");
+    $stmt->bind_param(
+        "iisdissssi",
+        $data['vehicle_id'],
+        $data['driver_id'],
+        $data['date'],
+        $data['liters'],
+        $data['cost'],
+        $data['fuel_type'],
+        $data['gas_station'],
+        $data['receipt_number'],
+        $data['notes'],
+        $data['id']
+    );
     return $stmt->execute();
 }
+
+function getAvailableVehicles($date, $time) {
+    global $conn;
+
+    // Combine date + time
+    $dt = "$date $time:00";
+
+    $stmt = $conn->prepare("
+        SELECT * FROM vehicles
+        WHERE id NOT IN (
+            SELECT vehicle_id FROM reservations
+            WHERE status IN ('Pending','Approved','In Use')
+            AND (
+                (? BETWEEN start_datetime AND end_datetime)
+                OR
+                (DATE_ADD(?, INTERVAL 1 HOUR) BETWEEN start_datetime AND end_datetime)
+            )
+        )
+        ORDER BY plate ASC
+    ");
+    $stmt->bind_param("ss", $dt, $dt);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function getAvailableDriversForReservation($start, $end) {
+    global $conn;
+
+    $sql = "
+        SELECT u.user_id, u.full_name
+        FROM users u
+        WHERE u.role = 'Driver'
+        AND u.user_id NOT IN (
+            SELECT driver_id
+            FROM reservations
+            WHERE driver_id IS NOT NULL
+            AND status != 'Cancelled'
+            AND (
+                (start_datetime <= ? AND end_datetime >= ?)
+                OR
+                (start_datetime <= ? AND end_datetime >= ?)
+                OR
+                (start_datetime >= ? AND end_datetime <= ?)
+            )
+        )
+        ORDER BY u.full_name ASC
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssssss", $start, $start, $end, $end, $start, $end);
+    $stmt->execute();
+
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function getAvailableVehiclesBetween($start, $end) {
+    global $conn;
+
+    $sql = "
+        SELECT *
+        FROM vehicles v
+        WHERE v.id NOT IN (
+            SELECT vehicle_id
+            FROM reservations
+            WHERE status != 'Cancelled'
+            AND (
+                (start_datetime <= ? AND end_datetime >= ?)  -- overlaps start
+                OR
+                (start_datetime <= ? AND end_datetime >= ?)  -- overlaps end
+                OR
+                (start_datetime >= ? AND end_datetime <= ?)  -- fully inside
+            )
+        )
+        ORDER BY v.plate ASC
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssssss", $start, $start, $end, $end, $start, $end);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $vehicles = [];
+    while ($row = $result->fetch_assoc()) {
+        $vehicles[] = $row;
+    }
+    return $vehicles;
+}
+
+function getAvailableDriversBetween($start, $end) {
+    global $conn;
+
+    $sql = "SELECT d.user_id, d.full_name
+            FROM drivers d
+            WHERE d.user_id NOT IN (
+                SELECT driver_id 
+                FROM reservations
+                WHERE driver_id IS NOT NULL
+                  AND (
+                      (start_datetime <= ? AND end_datetime >= ?) OR
+                      (start_datetime <= ? AND end_datetime >= ?) OR
+                      (start_datetime >= ? AND end_datetime <= ?)
+                  )
+            )";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssssss", $start, $start, $end, $end, $start, $end);
+
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function getDispatches() {
+    global $conn;
+
+    $sql = "
+        SELECT 
+            d.*,
+            v.plate,
+            v.type,
+            dr.full_name AS driver
+        FROM dispatches d
+        LEFT JOIN vehicles v ON d.vehicle_id = v.id
+        LEFT JOIN drivers dr ON d.driver_id = dr.id
+        ORDER BY d.dispatch_date DESC
+    ";
+
+    $result = $conn->query($sql);
+    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+}
+
+function isVehicleAvailableForDispatch($vehicle_id, $start, $end) {
+    global $conn;
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) AS cnt FROM dispatches
+        WHERE vehicle_id = ?
+        AND status IN ('Pending', 'Assigned', 'In Use')
+        AND (
+            (dispatch_date <= ? AND return_date >= ?)
+            OR
+            (dispatch_date <= ? AND return_date >= ?)
+            OR
+            (dispatch_date >= ? AND return_date <= ?)
+        )
+    ");
+    $stmt->bind_param("issssss", $vehicle_id, $start, $start, $end, $end, $start, $end);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+    return $res['cnt'] == 0;
+}
+
+function isDriverAvailableForDispatch($driver_id, $start, $end) {
+    global $conn;
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) AS cnt FROM dispatches
+        WHERE driver_id = ?
+        AND status IN ('Pending', 'Assigned', 'In Use')
+        AND (
+            (dispatch_date <= ? AND return_date >= ?)
+            OR
+            (dispatch_date <= ? AND return_date >= ?)
+            OR
+            (dispatch_date >= ? AND return_date <= ?)
+        )
+    ");
+    $stmt->bind_param("issssss", $driver_id, $start, $start, $end, $end, $start, $end);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+    return $res['cnt'] == 0;
+}
+
+function createDispatch($data) {
+    global $conn;
+
+    $vehicle_id = $data['vehicle_id'];
+    $driver_id = $data['driver_id'] ?: NULL;
+    $dispatch_date = $data['dispatch_date'];
+    $return_date = $data['return_date'];
+    $route = $data['route'];
+    $status = 'Pending';
+
+    if (!isVehicleAvailableForDispatch($vehicle_id, $dispatch_date, $return_date)) {
+        return ['success' => false, 'message' => 'Vehicle not available for selected period.'];
+    }
+
+    if ($driver_id && !isDriverAvailableForDispatch($driver_id, $dispatch_date, $return_date)) {
+        return ['success' => false, 'message' => 'Driver not available for selected period.'];
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO dispatches (vehicle_id, driver_id, dispatch_date, return_date, route, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param("iissss", $vehicle_id, $driver_id, $dispatch_date, $return_date, $route, $status);
+
+    if ($stmt->execute()) {
+        return ['success' => true, 'id' => $stmt->insert_id, 'message' => 'Dispatch created successfully.'];
+    } else {
+        return ['success' => false, 'message' => $stmt->error];
+    }
+}
+
+function convertReservationToDispatch($reservationId) {
+    global $conn;
+
+    $stmt = $conn->prepare("SELECT * FROM reservations WHERE id = ?");
+    $stmt->bind_param("i", $reservationId);
+    $stmt->execute();
+    $reservation = $stmt->get_result()->fetch_assoc();
+
+    if (!$reservation) return ['success' => false, 'message' => 'Reservation not found.'];
+
+    return createDispatch([
+        'vehicle_id' => $reservation['vehicle_id'],
+        'driver_id' => $reservation['driver_id'],
+        'dispatch_date' => $reservation['start_datetime'],
+        'return_date' => $reservation['end_datetime'],
+        'route' => $reservation['purpose'],
+    ]);
+}
+
+function isVehicleAvailableBetween($vehicle_id, $start, $end) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as cnt FROM dispatches
+        WHERE vehicle_id = ?
+        AND status IN ('Pending','Assigned','In Use')
+        AND (dispatch_date <= ? AND return_date >= ?)
+    ");
+
+    $stmt->bind_param("iss", $vehicle_id, $end, $start);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+
+    return $res['cnt'] == 0;
+}
+
+function isDriverAvailableBetween($driver_id, $start, $end) {
+    global $conn;
+
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as cnt FROM dispatches
+        WHERE driver_id = ?
+        AND status IN ('Assigned','In Use')
+        AND (dispatch_date <= ? AND return_date >= ?)
+    ");
+
+    $stmt->bind_param("iss", $driver_id, $end, $start);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+
+    return $res['cnt'] == 0;
+}
+
+
 ?>
