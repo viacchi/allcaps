@@ -208,7 +208,6 @@ if (isset($data['data']) && !empty($data['data'])) {
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Vehicle Number</th>
-<th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Vehicle Model</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Maintenance Type</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
@@ -220,7 +219,6 @@ if (isset($data['data']) && !empty($data['data'])) {
                             <?php foreach ($maintenance as $record): ?>
                             <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
 <td class="px-5 py-4 text-sm font-semibold text-primary-green"><?php echo $record['plate']; ?></td>
-<td class="px-5 py-4 text-sm text-gray-700"><?php echo $record['vehicle']; ?></td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo $record['type']; ?></td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($record['date'])); ?></td>
                                 <td class="px-5 py-4 text-sm">

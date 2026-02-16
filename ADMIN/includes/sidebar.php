@@ -44,26 +44,31 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             </div>
             <div class="<?php echo in_array($current_page, ['vehicle-registry', 'maintenance-tracker', 'fuel-expense-records', 'maintenance-approvals', 'compliance-licensing', 'predictive-maintenance']) ? '' : 'hidden'; ?> bg-white/5 overflow-hidden transition-all duration-300" id="fleet-submenu">
                 <!-- PAGE #1 -->
-                <a href="/public_html/ADMIN/module_1/vehicle-registry.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'vehicle-registry' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                <a href="/ADMIN/module_1/vehicle-registry.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'vehicle-registry' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-car text-sm"></i>
                     <span class="text-sm">Vehicle Registry</span>
                 </a>
                 
                 <!-- PAGE #2 -->
-                <a href="/public_html/ADMIN/module_1/maintenance-tracker.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'maintenance-tracker' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                <a href="/ADMIN/module_1/maintenance-tracker.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'maintenance-tracker' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-wrench text-sm"></i>
                     <span class="text-sm">Maintenance Tracker</span>
                 </a>
                 
                 <!-- PAGE #3 -->
-                <a href="/public_html/ADMIN/module_1/fuel-expense-records.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'fuel-expense-records' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                <a href="/ADMIN/module_1/fuel-expense-records.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'fuel-expense-records' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-gas-pump text-sm"></i>
                     <span class="text-sm">Fuel & Expense Records</span>
                 </a>
-                
+                                <!-- PAGE #5 -->
+                <a href="/ADMIN/module_1/request-requisitions.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'compliance-licensing' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                    <i class="fas fa-file-contract text-sm"></i>
+                    <span class="text-sm">Request Requisitions</span>
+                </a>
+
                 
                 <!-- PAGE #5 -->
-                <a href="/public_html/ADMIN/module_1/compliance-licensing.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'compliance-licensing' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                <a href="/ADMIN/module_1/compliance-licensing.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'compliance-licensing' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-file-contract text-sm"></i>
                     <span class="text-sm">Compliance & Licensing</span>
                 </a>
@@ -83,11 +88,15 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                     <!-- PAGE #7 -->
          
                     <!-- PAGE #8 -->
-                    <a href="/public_html/ADMIN/module_2/reservation-management.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'reservation-management' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                    <a href="/ADMIN/module_2/reservation-management.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'reservation-management' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                         <i class="fas fa-tasks text-sm"></i>
                         <span class="text-sm">Reservation Management</span>
                     </a>
-                    
+                                        <a href="/ADMIN/tracker_live.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'reservation-management' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                        <i class="fas fa-tasks text-sm"></i>
+                        <span class="text-sm">Live Tracker</span>
+                    </a>
+
                 </div>
             </div>
 
@@ -103,22 +112,17 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 <div class="<?php echo in_array($current_page, ['behavior-analytics', 'incident-management', 'driver-profiles', 'trip-performance']) ? '' : 'hidden'; ?> bg-white/5 overflow-hidden transition-all duration-300" id="performance-submenu">
                     <!-- PAGE #10 -->
                     <!-- PAGE #11 -->
-                    <a href="/public_html/ADMIN/module_3/incident-management.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'incident-management' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                    <a href="/ADMIN/module_3/incident-management.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'incident-management' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                         <i class="fas fa-exclamation-triangle text-sm"></i>
                         <span class="text-sm">Incident Management</span>
                     </a>
                     
                     <!-- PAGE #12 -->
-                    <a href="/public_html/ADMIN/module_3/driver-profiles.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'driver-profiles' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                    <a href="/ADMIN/module_3/driver-profiles.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'driver-profiles' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                         <i class="fas fa-id-card-alt text-sm"></i>
                         <span class="text-sm">Driver Profiles</span>
                     </a>
                     
-                    <!-- PAGE #13 -->
-                    <a href="/public_html/ADMIN/module_3/trip-performance.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'trip-performance' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
-                        <i class="fas fa-route text-sm"></i>
-                        <span class="text-sm">Trip Performance</span>
-                    </a>
                 </div>
             </div>
 
@@ -132,7 +136,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 <i class="fas fa-chevron-down transition-transform duration-300 <?php echo in_array($current_page, ['transport-cost-optimization']) ? 'rotate-180' : ''; ?>" id="reports-icon"></i>
             </div>
             <div class="<?php echo in_array($current_page, ['transport-cost-optimization']) ? '' : 'hidden'; ?> bg-white/5 overflow-hidden transition-all duration-300" id="reports-submenu">
-                <a href="/public_html/ADMIN/module_4/transport-cost-optimization.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'fleet-reports' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
+                <a href="/ADMIN/module_4/transport-cost-optimization.php" class="nav-item text-white/70 px-5 py-2.5 pl-14 flex items-center gap-3 cursor-pointer transition-all duration-300 border-l-3 border-transparent hover:bg-white/10 hover:text-white <?php echo $current_page === 'fleet-reports' ? 'bg-white/15 border-l-white text-white' : ''; ?>">
                     <i class="fas fa-file-alt text-sm"></i>
                     <span class="text-sm">Transport Cost & Optimization</span>
                 </a>

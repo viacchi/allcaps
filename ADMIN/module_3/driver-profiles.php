@@ -1,20 +1,14 @@
 <?php
 include '../includes/functions.php';
 $drivers = getDriverProfiles();
+$vehicles = getAllVehicles(); 
+// FIXED: Changed to getDispatches() to match the active tracking system
+$allTrips = getDispatches(); 
 
 // KPI calculations safely
 $totalDrivers = count($drivers);
-
-// Safely calculate averages
-$avgRating = $totalDrivers > 0 
-    ? array_sum(array_column($drivers, 'rating')) / $totalDrivers 
-    : 0;
-
-$avgSafety = $totalDrivers > 0 
-    ? array_sum(array_column($drivers, 'safety_score')) / $totalDrivers 
-    : 0;
-
-// Count active drivers
+$avgRating = $totalDrivers > 0 ? array_sum(array_column($drivers, 'rating')) / $totalDrivers : 0;
+$avgSafety = $totalDrivers > 0 ? array_sum(array_column($drivers, 'safety_score')) / $totalDrivers : 0;
 $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active'));
 ?>
 
@@ -41,33 +35,23 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
     </script>
 </head>
 <body class="bg-gray-50 font-sans">
-    <!-- Sidebar -->
     <?php include '../includes/sidebar.php'; ?>
 
-    <!-- Main Content -->
     <div class="ml-0 md:ml-[280px] min-h-screen transition-all duration-300">
-        <!-- Header -->
         <?php include '../includes/header.php'; ?>
 
-        <!-- Page Content -->
         <main class="p-6">
-            <!-- Optional Subtitle -->
             <div class="mb-6">
                 <p class="text-gray-600">Track training, certifications, and performance ratings</p>
             </div>
 
-            <!-- KPI Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white rounded-lg p-5 shadow-sm border-t-4 border-primary-green">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Total Drivers</div>
                             <div class="text-3xl font-bold text-gray-900 my-2">
-                                <?php
-                                echo count($drivers) > 0
-                                    ? number_format(array_sum(array_column($drivers, 'rating')) / count($drivers), 1)
-                                    : '0.0';
-                                ?>
+                                <?php echo number_format($avgRating, 1); ?>
                                 <i class="fas fa-star text-yellow-500 text-lg"></i>
                             </div>
                             <div class="text-xs font-medium text-blue-600">
@@ -84,7 +68,7 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Active Drivers</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($drivers, fn($d) => $d['status'] === 'Active')); ?></div>
+                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo $activeDrivers; ?></div>
                             <div class="text-xs font-medium text-green-600">
                                 <i class="fas fa-check-circle"></i> On duty
                             </div>
@@ -118,11 +102,7 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                         <div>
                             <div class="text-gray-600 text-sm font-medium">Avg Safety Score</div>
                             <div class="text-3xl font-bold text-gray-900 my-2">
-                                <?php
-                                echo count($drivers) > 0
-                                    ? round(array_sum(array_column($drivers, 'safety_score')) / count($drivers))
-                                    : 0;
-                                ?>%
+                                <?php echo round($avgSafety); ?>%
                             </div>
                             <div class="text-xs font-medium text-blue-600">
                                 <i class="fas fa-shield-alt"></i> Performance
@@ -135,7 +115,6 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                 </div>
             </div>
 
-            <!-- Driver Profiles Grid -->
             <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
                 <div class="bg-gray-50 border-b border-gray-200 px-5 py-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -155,7 +134,6 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                     </div>
                 </div>
 
-                <!-- Driver Cards Grid -->
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="driverGrid">
                     <?php foreach ($drivers as $driver): 
                         $statusColors = [
@@ -164,36 +142,41 @@ $activeDrivers = count(array_filter($drivers, fn($d) => $d['status'] === 'Active
                             'Inactive' => 'bg-red-100 text-red-800'
                         ];
                         $ratingStars = str_repeat('⭐', floor($driver['rating']));
+                        
+                        // FIXED: Replaced '/' with '../../' so it routes to the correct folder
+                        $pic = !empty($driver['profile_picture']) ? '../../' . $driver['profile_picture'] : null;
                     ?>
                     <div class="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all cursor-pointer" data-driver='<?php echo htmlspecialchars(json_encode($driver), ENT_QUOTES, 'UTF-8'); ?>'
-onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
->
-                        <!-- Driver Header -->
+onclick="viewDriverProfile(JSON.parse(this.dataset.driver))">
                         <div class="flex items-center gap-4 mb-4">
-                            <div class="w-16 h-16 bg-gradient-to-br from-primary-green to-dark-green rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                                <?php echo strtoupper(substr($driver['name'], 0, 2)); ?>
+                            <div class="w-16 h-16 bg-gradient-to-br from-primary-green to-dark-green rounded-full overflow-hidden flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+                                <?php if($pic): ?>
+                                    <img src="<?php echo htmlspecialchars($pic); ?>" class="w-full h-full object-cover">
+                                <?php else: ?>
+                                    <?php echo strtoupper(substr($driver['name'], 0, 2)); ?>
+                                <?php endif; ?>
                             </div>
                             <div class="flex-1">
                                 <h3 class="font-bold text-gray-900 text-lg"><?php echo $driver['name']; ?></h3>
-                                <p class="text-xs text-gray-500"><?php echo $driver['license']; ?></p>
-                                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 <?php echo $statusColors[$driver['status']]; ?>">
+                                <p class="text-xs text-gray-500">
+                                    <?php echo $driver['assigned_plate'] ? '<i class="fas fa-truck text-primary-green mr-1"></i> ' . $driver['assigned_plate'] : '<i class="fas fa-exclamation-circle text-yellow-500 mr-1"></i> No Vehicle'; ?>
+                                </p>
+                                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 <?php echo $statusColors[$driver['status']] ?? 'bg-gray-100 text-gray-800'; ?>">
                                     <?php echo $driver['status']; ?>
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Rating -->
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-gray-600">Rating</span>
                                 <div class="flex items-center gap-1">
                                     <span class="text-lg"><?php echo $ratingStars; ?></span>
-                                    <span class="text-sm font-semibold text-gray-900"><?php echo $driver['rating']; ?></span>
+                                    <span class="text-sm font-semibold text-gray-900"><?php echo number_format($driver['rating'], 1); ?></span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Stats Grid -->
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
                                 <div class="text-xs text-gray-600 mb-1">Total Trips</div>
@@ -215,7 +198,6 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
                             </div>
                         </div>
 
-                        <!-- UTTON NA DI GUMAGANA -->
                         <div class="flex gap-2">
                             <button 
                                 class="flex-1 px-3 py-1.5 bg-primary-green text-white rounded-md text-xs font-semibold hover:bg-dark-green transition-all"
@@ -230,14 +212,13 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
         </main>
     </div>
 
-    <!-- Driver Profile Modal -->
-    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center" id="profileModal">
+    <div class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 items-center justify-center" id="profileModal">
         <div class="bg-white rounded-lg w-11/12 max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <!-- Modal Header -->
             <div class="bg-gradient-to-r from-primary-green to-dark-green text-white px-6 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                        <span id="modalInitials">JS</span>
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                        <span id="modalInitials" class="hidden">JS</span>
+                        <img id="modalViewPic" src="" class="w-full h-full object-cover hidden">
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold" id="modalName">John Smith</h3>
@@ -249,7 +230,6 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
                 </button>
             </div>
 
-            <!-- Tabs -->
             <div class="border-b border-gray-200">
                 <nav class="flex">
                     <button class="px-6 py-3 text-sm font-semibold border-b-2 border-primary-green text-primary-green" onclick="switchTab('personal')" id="tabPersonal">
@@ -267,12 +247,9 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
                 </nav>
             </div>
 
-            <!-- Tab Content -->
             <div class="p-6">
-                <!-- Personal Info Tab -->
                 <div id="contentPersonal">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Contact Information -->
                         <div class="bg-gray-50 rounded-lg p-4">
                             <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                                 <i class="fas fa-address-card text-primary-green"></i>
@@ -295,31 +272,22 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
                                     <span class="text-gray-600">Emergency Contact:</span>
                                     <span class="font-semibold text-gray-900" id="modalEmergency">-</span>
                                 </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">Blood Type:</span>
-                                    <span class="font-semibold text-red-600" id="modalBloodType">-</span>
-                                </div>
                             </div>
                         </div>
 
-                        <!-- License & Employment -->
                         <div class="bg-gray-50 rounded-lg p-4">
                             <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                                 <i class="fas fa-id-badge text-primary-green"></i>
-                                License & Employment
+                                License & Assignment
                             </h4>
                             <div class="space-y-3">
                                 <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Assigned Vehicle:</span>
+                                    <span class="font-bold text-primary-green" id="modalAssignedVehicle">-</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
                                     <span class="text-gray-600">License Number:</span>
                                     <span class="font-semibold text-gray-900" id="modalLicenseNum">-</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">License Expiry:</span>
-                                    <span class="font-semibold text-gray-900" id="modalExpiry">-</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">Join Date:</span>
-                                    <span class="font-semibold text-gray-900" id="modalJoinDate">-</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
                                     <span class="text-gray-600">Status:</span>
@@ -327,252 +295,133 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Performance Metrics -->
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                                <i class="fas fa-chart-bar text-primary-green"></i>
-                                Performance Metrics
-                            </h4>
-                            <div class="space-y-4">
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="text-gray-600">Safety Score</span>
-                                        <span class="font-semibold text-gray-900" id="modalSafetyScore">-</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-green-500 h-2 rounded-full" id="modalSafetyBar" style="width: 0%"></div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="text-gray-600">On-Time Rate</span>
-                                        <span class="font-semibold text-gray-900" id="modalOnTimeRate">-</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-blue-500 h-2 rounded-full" id="modalOnTimeBar" style="width: 0%"></div>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4 mt-4">
-                                    <div>
-                                        <div class="text-xs text-gray-600 mb-1">Total Trips</div>
-                                        <div class="text-2xl font-bold text-gray-900" id="modalTotalTrips">-</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-600 mb-1">Total Distance</div>
-                                        <div class="text-2xl font-bold text-gray-900" id="modalTotalDistance">-</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
 
-                <!-- Trips Tab -->
                 <div id="contentTrips" class="hidden">
                     <div class="mb-4 flex items-center justify-between">
                         <h4 class="text-lg font-semibold text-gray-900">Trip History</h4>
-                        <select class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white">
-                            <option>Last 30 Days</option>
-                            <option>Last 3 Months</option>
-                            <option>Last 6 Months</option>
-                            <option>All Time</option>
-                        </select>
                     </div>
 
-                    <!-- Trip Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-blue-50 rounded-lg p-4 text-center">
-                            <div class="text-3xl font-bold text-blue-600" id="modalTripsCompleted">-</div>
-                            <div class="text-sm text-gray-600 mt-1">Completed Trips</div>
-                        </div>
-                        <div class="bg-green-50 rounded-lg p-4 text-center">
-                            <div class="text-3xl font-bold text-green-600" id="modalTripsOnTime">-</div>
-                            <div class="text-sm text-gray-600 mt-1">On-Time Deliveries</div>
-                        </div>
-                        <div class="bg-yellow-50 rounded-lg p-4 text-center">
-                            <div class="text-3xl font-bold text-yellow-600">12.5K</div>
-                            <div class="text-sm text-gray-600 mt-1">Total KM</div>
-                        </div>
-                        <div class="bg-purple-50 rounded-lg p-4 text-center">
-                            <div class="text-3xl font-bold text-purple-600">450</div>
-                            <div class="text-sm text-gray-600 mt-1">Hours Driven</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Trips Table -->
                     <div class="border border-gray-200 rounded-lg overflow-hidden">
                         <table class="w-full">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Vehicle</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Route</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Distance</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Tracking Ref</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Destination</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-t border-gray-200 hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">Oct 28, 2024</td>
-                                    <td class="px-4 py-3 text-sm text-gray-900">ABC-1234</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">Manila - Quezon City</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">45 km</td>
-                                    <td class="px-4 py-3 text-sm">
-                                        <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Completed</span>
-                                    </td>
-                                </tr>
-                                <tr class="border-t border-gray-200 hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">Oct 27, 2024</td>
-                                    <td class="px-4 py-3 text-sm text-gray-900">ABC-1234</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">Manila - Makati</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">32 km</td>
-                                    <td class="px-4 py-3 text-sm">
-                                        <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Completed</span>
-                                    </td>
-                                </tr>
-                                <tr class="border-t border-gray-200 hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm text-gray-900">Oct 26, 2024</td>
-                                    <td class="px-4 py-3 text-sm text-gray-900">XYZ-5678</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">Manila - Taguig</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">28 km</td>
-                                    <td class="px-4 py-3 text-sm">
-                                        <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Completed</span>
-                                    </td>
-                                </tr>
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Incidents Tab -->
                 <div id="contentIncidents" class="hidden">
-                    <div class="mb-4 flex items-center justify-between">
-                        <h4 class="text-lg font-semibold text-gray-900">Incident History</h4>
-                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold" id="modalIncidentCount">0 Incidents</span>
-                    </div>
-
-                    <div id="modalIncidentsList" class="space-y-4">
-                        <!-- Incidents will be loaded here -->
-                        <div class="text-center py-12 text-gray-500">
-                            <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
-                            <p class="text-lg font-semibold text-gray-700">No Incidents Recorded</p>
-                            <p class="text-sm text-gray-500 mt-2">This driver has a clean record!</p>
-                        </div>
+                     <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+                        <p class="text-lg font-semibold text-gray-700">No Incidents Recorded</p>
                     </div>
                 </div>
 
-                <!-- Ratings Tab -->
                 <div id="contentRatings" class="hidden">
-                    <div class="mb-6">
-                        <h4 class="text-lg font-semibold text-gray-900 mb-4">Overall Rating</h4>
-                        <div class="bg-gray-50 rounded-lg p-6 text-center">
-                            <div class="text-6xl font-bold text-gray-900 mb-2" id="modalRatingNum">-</div>
-                            <div class="text-3xl mb-2" id="modalRatingStars">⭐⭐⭐⭐⭐</div>
-                            <p class="text-sm text-gray-600">Based on customer and supervisor feedback</p>
-                        </div>
-                    </div>
-
-                    <!-- Rating Breakdown -->
-                    <div class="mb-6">
-                        <h4 class="text-sm font-semibold text-gray-700 mb-4">Rating Breakdown</h4>
-                        <div class="space-y-3">
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-600">Professionalism</span>
-                                    <span class="font-semibold text-gray-900">4.9 ⭐</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 98%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-600">Punctuality</span>
-                                    <span class="font-semibold text-gray-900">4.8 ⭐</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 96%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-600">Vehicle Care</span>
-                                    <span class="font-semibold text-gray-900">4.7 ⭐</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 94%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-600">Customer Service</span>
-                                    <span class="font-semibold text-gray-900">4.9 ⭐</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-yellow-500 h-2 rounded-full" style="width: 98%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Reviews -->
-                    <div>
-                        <h4 class="text-sm font-semibold text-gray-700 mb-4">Recent Reviews</h4>
-                        <div class="space-y-4">
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                            CM
-                                        </div>
-                                        <div>
-                                            <div class="font-semibold text-sm text-gray-900">Customer</div>
-                                            <div class="text-xs text-gray-500">Oct 25, 2024</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-yellow-500">⭐⭐⭐⭐⭐</div>
-                                </div>
-                                <p class="text-sm text-gray-700">"Very professional and courteous driver. Delivered on time and handled our items with care."</p>
-                            </div>
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                            SP
-                                        </div>
-                                        <div>
-                                            <div class="font-semibold text-sm text-gray-900">Supervisor</div>
-                                            <div class="text-xs text-gray-500">Oct 20, 2024</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-yellow-500">⭐⭐⭐⭐⭐</div>
-                                </div>
-                                <p class="text-sm text-gray-700">"Excellent driver with great attention to safety protocols. Always maintains vehicle in good condition."</p>
-                            </div>
-                        </div>
+                     <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-star text-5xl text-yellow-400 mb-4"></i>
+                        <p class="text-lg font-semibold text-gray-700">Driver Ratings loading...</p>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
                 <div class="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                     <button class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-300 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="closeProfileModal()">
                         <i class="fas fa-times"></i> Close
                     </button>
-                    <button class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-semibold hover:bg-blue-600 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="editDriver()">
-                        <i class="fas fa-edit"></i> Edit Profile
-                    </button>
-                    <button class="flex-1 px-4 py-2 bg-primary-green text-white rounded-md text-sm font-semibold hover:bg-dark-green transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="exportDriverReport()">
-                        <i class="fas fa-download"></i> Export Report
+                    <button class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-semibold hover:bg-blue-600 transition-all duration-300 inline-flex items-center justify-center gap-2" onclick="openEditModal()">
+                        <i class="fas fa-edit"></i> Edit Profile & Vehicle
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
+    <div class="hidden fixed inset-0 z-[60] bg-black bg-opacity-70 items-center justify-center" id="editModal">
+        <div class="bg-white rounded-lg w-11/12 max-w-2xl overflow-hidden shadow-2xl">
+            <div class="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-xl"><i class="fas fa-user-edit mr-2"></i>Edit Driver Details</h3>
+                <button onclick="closeEditModal()" class="text-white hover:text-gray-200"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-6">
+                <div id="editStatusMessage" class="hidden mb-4 p-3 rounded text-sm font-bold"></div>
 
+                <form id="editDriverForm" enctype="multipart/form-data">
+                    <input type="hidden" name="user_id" id="editUserId">
+                    
+                    <div class="flex items-center gap-6 mb-6 pb-6 border-b">
+                        <div class="relative group">
+                            <img id="editProfilePreview" src="https://via.placeholder.com/100" class="w-24 h-24 rounded-full object-cover border-4 border-gray-200 shadow-sm">
+                            <input type="file" name="profile_picture" id="editProfilePic" accept="image/*" class="hidden">
+                            <label for="editProfilePic" class="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                <i class="fas fa-camera text-xl mb-1"></i>
+                                <span class="text-xs font-bold">Change</span>
+                            </label>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-lg">Profile Picture</h4>
+                            <p class="text-xs text-gray-500">JPG or PNG. Max 5MB.<br>Updates will sync to Driver's App.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
+                            <input type="text" name="name" id="editName" class="w-full px-3 py-2 border rounded focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">License Number</label>
+                            <input type="text" name="license" id="editLicense" class="w-full px-3 py-2 border rounded focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Emergency Contact</label>
+                            <input type="text" name="emergency_contact" id="editEmergency" class="w-full px-3 py-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Account Status</label>
+                            <select name="status" id="editStatus" class="w-full px-3 py-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                                <option value="Active">Active</option>
+                                <option value="On Leave">On Leave</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-span-2 mt-2">
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Assigned Vehicle</label>
+                            <select name="vehicle_id" id="editVehicle" class="w-full px-3 py-2 border rounded focus:ring-blue-500 focus:border-blue-500 bg-emerald-50 font-bold text-emerald-900 border-emerald-200">
+                                <option value="">-- No Vehicle Assigned --</option>
+                                <?php foreach ($vehicles as $v): ?>
+                                    <option value="<?php echo $v['id']; ?>">
+                                        <?php echo htmlspecialchars($v['plate'] . ' (' . $v['model'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1">This will permanently assign this truck to the driver's dashboard.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md font-semibold hover:bg-gray-300">Cancel</button>
+                        <button type="submit" id="btnSaveDriver" class="px-6 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 flex items-center gap-2">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const allTrips = <?php echo json_encode($allTrips); ?>;
         let currentDriver = null;
 
         function filterDrivers() {
@@ -594,21 +443,31 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
         function viewDriverProfile(driver) {
             currentDriver = driver;
             
-            // Set profile header
             const initials = driver.name.split(' ').map(n => n[0]).join('');
-            document.getElementById('modalInitials').textContent = initials;
+            
+            // FIXED IMAGE PATH FOR VIEW MODAL
+            if(driver.profile_picture) {
+                document.getElementById('modalInitials').classList.add('hidden');
+                document.getElementById('modalViewPic').src = '../../' + driver.profile_picture;
+                document.getElementById('modalViewPic').classList.remove('hidden');
+            } else {
+                document.getElementById('modalInitials').textContent = initials;
+                document.getElementById('modalInitials').classList.remove('hidden');
+                document.getElementById('modalViewPic').classList.add('hidden');
+            }
+            
             document.getElementById('modalName').textContent = driver.name;
             document.getElementById('modalLicense').textContent = 'License: ' + driver.license;
 
             // Personal Info Tab
-            document.getElementById('modalEmail').textContent = driver.email;
-            document.getElementById('modalPhone').textContent = driver.phone;
-            document.getElementById('modalAddress').textContent = driver.address;
-            document.getElementById('modalEmergency').textContent = driver.emergency_contact;
-            document.getElementById('modalBloodType').textContent = driver.blood_type;
+            document.getElementById('modalEmail').textContent = driver.email || 'N/A';
+            document.getElementById('modalPhone').textContent = driver.phone || 'N/A';
+            document.getElementById('modalAddress').textContent = driver.address || 'N/A';
+            document.getElementById('modalEmergency').textContent = driver.emergency_contact || 'N/A';
             document.getElementById('modalLicenseNum').textContent = driver.license;
-            document.getElementById('modalExpiry').textContent = new Date(driver.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            document.getElementById('modalJoinDate').textContent = new Date(driver.join_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Show assigned vehicle
+            document.getElementById('modalAssignedVehicle').textContent = driver.assigned_plate ? driver.assigned_plate + ' (' + driver.assigned_model + ')' : 'No Vehicle Assigned';
             
             const statusColors = {
                 'Active': 'bg-green-100 text-green-800',
@@ -617,102 +476,157 @@ onclick="viewDriverProfile(JSON.parse(this.dataset.driver))"
             };
             const statusEl = document.getElementById('modalStatus');
             statusEl.textContent = driver.status;
-            statusEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-semibold ' + statusColors[driver.status];
+            statusEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-semibold ' + (statusColors[driver.status] || 'bg-gray-100 text-gray-800');
 
-            // Performance Metrics
-            document.getElementById('modalSafetyScore').textContent = driver.safety_score + '%';
-            document.getElementById('modalSafetyBar').style.width = driver.safety_score + '%';
-            document.getElementById('modalOnTimeRate').textContent = driver.on_time_rate + '%';
-            document.getElementById('modalOnTimeBar').style.width = driver.on_time_rate + '%';
-            document.getElementById('modalTotalTrips').textContent = driver.total_trips;
-            document.getElementById('modalTotalDistance').textContent = driver.total_distance.toLocaleString() + ' km';
-
-            // Certifications
-
-            // Trips Tab
-            document.getElementById('modalTripsCompleted').textContent = driver.total_trips;
-            document.getElementById('modalTripsOnTime').textContent = Math.round(driver.total_trips * (driver.on_time_rate / 100));
-
-            // Incidents Tab
-            document.getElementById('modalIncidentCount').textContent = driver.incidents + ' Incident' + (driver.incidents !== 1 ? 's' : '');
+            // REAL TRIPS LOGIC
+            const driverTrips = allTrips.filter(t => t.driver === driver.name);
+            const tripsTableBody = document.querySelector('#contentTrips tbody');
+            tripsTableBody.innerHTML = ''; 
             
-            if (driver.incidents > 0) {
-                // Show incidents - in real app, fetch from getIncidentCases()
-                document.getElementById('modalIncidentsList').innerHTML = `
-                    <div class="border-l-4 border-red-500 p-4 bg-red-50 rounded-r-lg">
-                        <div class="flex items-start justify-between mb-2">
-                            <div>
-                                <div class="font-semibold text-gray-900">Minor Collision</div>
-                                <div class="text-sm text-gray-600">At EDSA-Quezon Ave intersection</div>
-                            </div>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">High</span>
-                        </div>
-                        <div class="text-xs text-gray-500">
-                            <i class="fas fa-clock"></i> Oct 28, 2024
-                        </div>
-                    </div>
-                `;
+            if(driverTrips.length === 0) {
+                tripsTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No active dispatches or trips recorded.</td></tr>';
             } else {
-                document.getElementById('modalIncidentsList').innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
-                        <p class="text-lg font-semibold text-gray-700">No Incidents Recorded</p>
-                        <p class="text-sm text-gray-500 mt-2">This driver has a clean record!</p>
-                    </div>
+                // Update table headers
+                document.querySelector('#contentTrips thead tr').innerHTML = `
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Tracking Ref</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Destination</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                 `;
+
+                driverTrips.forEach(t => {
+                    let sColor = 'bg-gray-100 text-gray-800';
+                    if(t.status === 'Completed' || t.status === 'On-Time') sColor = 'bg-green-100 text-green-800';
+                    if(t.status === 'Pending' || t.status === 'Assigned') sColor = 'bg-yellow-100 text-yellow-800';
+                    if(t.status === 'Delayed' || t.status === 'Cancelled') sColor = 'bg-red-100 text-red-800';
+
+                    const tripDate = t.dispatch_date ? new Date(t.dispatch_date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'N/A';
+                    const ref = t.tracking_id ? '#' + t.tracking_id : 'N/A';
+                    const destination = t.destination || t.route || 'N/A';
+
+                    tripsTableBody.innerHTML += `
+                        <tr class="border-t border-gray-200 hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">${tripDate}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900 font-medium">${ref}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700 truncate max-w-[200px]" title="${destination}">${destination}</td>
+                            <td class="px-4 py-3 text-sm">
+                                <span class="inline-block px-2 py-1 ${sColor} rounded-full text-xs font-semibold">${t.status}</span>
+                            </td>
+                        </tr>
+                    `;
+                });
             }
 
-            // Ratings Tab
-            document.getElementById('modalRatingNum').textContent = driver.rating;
-            const stars = '⭐'.repeat(Math.floor(driver.rating));
-            document.getElementById('modalRatingStars').textContent = stars;
-
-            // Show modal
             document.getElementById('profileModal').classList.remove('hidden');
             document.getElementById('profileModal').classList.add('flex');
-
-            // Reset to first tab
             switchTab('personal');
- }
+        }
 
         function closeProfileModal() {
             document.getElementById('profileModal').classList.add('hidden');
             document.getElementById('profileModal').classList.remove('flex');
         }
 
+        function openEditModal() {
+            if(!currentDriver) return;
+            
+            closeProfileModal();
+            
+            document.getElementById('editUserId').value = currentDriver.user_id || currentDriver.id;
+            document.getElementById('editName').value = currentDriver.name;
+            document.getElementById('editLicense').value = currentDriver.license;
+            document.getElementById('editEmergency').value = currentDriver.emergency_contact || '';
+            document.getElementById('editStatus').value = currentDriver.status;
+            
+            document.getElementById('editVehicle').value = currentDriver.assigned_vehicle_id || '';
+            
+            // FIXED IMAGE PATH FOR EDIT MODAL
+            if(currentDriver.profile_picture) {
+                document.getElementById('editProfilePreview').src = '../../' + currentDriver.profile_picture;
+            } else {
+                document.getElementById('editProfilePreview').src = 'https://ui-avatars.com/api/?name=' + currentDriver.name + '&background=2563EB&color=fff';
+            }
+
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+            document.getElementById('editDriverForm').reset();
+            document.getElementById('editStatusMessage').classList.add('hidden');
+        }
+
+        document.getElementById('editProfilePic').addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('editProfilePreview').src = e.target.result;
+                }
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        document.getElementById('editDriverForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveDriver');
+            const msg = document.getElementById('editStatusMessage');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+            msg.classList.add('hidden');
+
+            const formData = new FormData(this);
+
+            fetch('process_edit_driver.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                msg.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+                if (data.success) {
+                    msg.classList.add('bg-green-100', 'text-green-700');
+                    msg.innerHTML = '<i class="fas fa-check-circle"></i> Successfully updated! Reloading...';
+                    setTimeout(() => window.location.reload(), 1500); 
+                } else {
+                    msg.classList.add('bg-red-100', 'text-red-700');
+                    msg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + data.message;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                msg.classList.remove('hidden');
+                msg.classList.add('bg-red-100', 'text-red-700');
+                msg.innerHTML = '<i class="fas fa-wifi"></i> Connection error. Try again.';
+                btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                btn.disabled = false;
+            });
+        });
+
         function switchTab(tabName) {
-            // Hide all tabs
             document.getElementById('contentPersonal').classList.add('hidden');
             document.getElementById('contentTrips').classList.add('hidden');
             document.getElementById('contentIncidents').classList.add('hidden');
             document.getElementById('contentRatings').classList.add('hidden');
 
-            // Reset all tab buttons
             document.getElementById('tabPersonal').className = 'px-6 py-3 text-sm font-semibold text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300';
             document.getElementById('tabTrips').className = 'px-6 py-3 text-sm font-semibold text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300';
             document.getElementById('tabIncidents').className = 'px-6 py-3 text-sm font-semibold text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300';
             document.getElementById('tabRatings').className = 'px-6 py-3 text-sm font-semibold text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300';
 
-            // Show selected tab
             document.getElementById('content' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
             document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).className = 'px-6 py-3 text-sm font-semibold border-b-2 border-primary-green text-primary-green';
         }
 
-        function addDriver() {
-            alert('Opening Add Driver form...');
-        }
-
-        function editDriver() {
-            alert('Opening Edit Driver form for ' + currentDriver.name);
-        }
-
-        function exportDriverReport() {
-            alert('Exporting driver report for ' + currentDriver.name);
-        }
-               document.getElementById('profileModal').addEventListener('click', function(e) {
+        document.getElementById('profileModal').addEventListener('click', function(e) {
             if (e.target === this) closeProfileModal();
         });
-
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
     </script>
 </body>
 </html>

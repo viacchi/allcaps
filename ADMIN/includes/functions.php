@@ -1,19 +1,25 @@
 <?php
 // functions.php - Connect to database and fetch data
 include 'db.php';
+include 'session.php';
+
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-
-
-
 // 2️⃣ VEHICLES
 function getVehicles() {
     global $conn;
-    $sql = "SELECT * FROM vehicles ORDER BY vehicle ASC";
+    $sql = "SELECT * FROM vehicles ORDER BY plate ASC";
     $res = $conn->query($sql);
+    return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+}
+
+// NEW: Function to populate the Vehicle Dropdown in the Edit Form
+function getAllVehicles() {
+    global $conn;
+    $res = $conn->query("SELECT id, plate, model, type FROM vehicles ORDER BY plate ASC");
     return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
@@ -56,7 +62,6 @@ function getAvailableDrivers() {
     return $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-
 // 5️⃣ TRIPS / DISPATCH ASSIGNMENTS
 function getTrips() {
     global $conn;
@@ -76,7 +81,7 @@ function getTrips() {
 // 6️⃣ TRIP SCHEDULES (for calendar)
 function getTripSchedules() {
     global $conn;
-    $sql = "SELECT t.id, v.vehicle, d.name AS driver, t.route, t.dispatch_date AS date
+    $sql = "SELECT t.id, v.plate AS vehicle, d.name AS driver, t.route, t.dispatch_date AS date
             FROM trips t
             JOIN vehicles v ON t.vehicle_id = v.id
             LEFT JOIN drivers d ON t.driver_id = d.id
@@ -87,7 +92,7 @@ function getTripSchedules() {
 
 function getDispatchAssignments() {
     global $conn;
-    $sql = "SELECT d.id, v.vehicle, v.model, v.type, d.driver_id, dr.name AS driver, d.status, d.dispatch_date, d.route, d.availability, v.lat, v.lng
+    $sql = "SELECT d.id, v.plate AS vehicle, v.model, v.type, d.driver_id, dr.name AS driver, d.status, d.dispatch_date, d.route, d.availability, v.lat, v.lng
             FROM dispatches d
             JOIN vehicles v ON d.vehicle_id = v.id
             LEFT JOIN drivers dr ON d.driver_id = dr.id
@@ -159,7 +164,7 @@ function deactivateVehicle($id) {
 function getMaintenanceRecords() {
     global $conn;
     $sql = "
-        SELECT m.*, v.plate, v.vehicle 
+        SELECT m.*, v.plate
         FROM maintenance m
         JOIN vehicles v ON m.vehicle_id = v.id
         WHERE m.source = 'LOG1'
@@ -256,7 +261,7 @@ function getFuelExpenses() {
 // 10️⃣ APPROVALS
 function getApprovals() {
     global $conn;
-    $sql = "SELECT a.id, v.vehicle, a.type, a.request_date AS date, a.cost AS amount, a.status
+    $sql = "SELECT a.id, v.plate AS vehicle, a.type, a.request_date AS date, a.cost AS amount, a.status
             FROM maintenance_approvals a
             JOIN vehicles v ON a.vehicle_id = v.id
             ORDER BY a.request_date DESC";
@@ -378,7 +383,7 @@ function getKPIData() {
         'inactive_vehicles' => $inactiveVehicles,
         'maintenance_due'   => $maintenanceDue,
         'available_drivers' => $availableDrivers,
-        'active_trips'      => count(array_filter($trips, fn($t) => $t['availability'] === 'Assigned')),
+        'active_trips'      => count(array_filter($trips, fn($t) => $t['status'] === 'Assigned')),
     ];
 }
 
@@ -431,24 +436,20 @@ function addFuelExpense($vehicle_id, $date, $liters, $cost, $driver_id, $receipt
         $stmt->bind_param("isddis", $vehicle_id, $date, $liters, $cost, $driver_id, $receipt_path);
 
         if ($stmt->execute()) {
-            // Success
             $stmt->close();
             return true;
         } else {
-            // Execution failed
             echo "Database insert failed: " . $stmt->error;
             $stmt->close();
             return false;
         }
     } else {
-        // Prepare failed
         echo "SQL Prepare failed: " . $conn->error;
         return false;
     }
 }
 
-// DRIVER PROFILES (for Driver Profiles page)
-// Keep this version
+// DRIVER PROFILES (UPDATED WITH PROFILE PICTURE AND VEHICLE JOIN)
 function getDriverProfiles() {
     global $conn;
 
@@ -457,8 +458,9 @@ function getDriverProfiles() {
             d.id,
             d.user_id,
 
-            CONCAT(u.full_name) AS name,
+            u.full_name AS name,
             u.email,
+            u.phone_number AS phone,
 
             d.license,
             d.status,
@@ -473,10 +475,16 @@ function getDriverProfiles() {
             d.on_time_rate,
             d.total_trips,
             d.total_distance,
-            d.incidents
+            d.incidents,
+            
+            d.profile_picture,
+            d.assigned_vehicle_id,
+            v.plate AS assigned_plate,
+            v.model AS assigned_model
 
         FROM drivers d
         JOIN users u ON d.user_id = u.user_id
+        LEFT JOIN vehicles v ON d.assigned_vehicle_id = v.id
         ORDER BY u.full_name
     ";
 
@@ -502,7 +510,7 @@ function getIncidentCases() {
             ic.location,
             ic.status,
             ic.reported_by,
-            ic.attachments,  -- <--- add this line
+            ic.attachments,
 
             CONCAT(u.full_name) AS driver,
             IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle
@@ -538,6 +546,7 @@ function getDriverBehaviorData() {
 
     return $data;
 }
+
 // Fetch recent behavior incidents
 function getBehaviorIncidents($limit = 5) {
     global $conn;
@@ -550,7 +559,7 @@ function getBehaviorIncidents($limit = 5) {
 
     $data = [];
 
-    if ($result) { // <-- Check if query succeeded
+    if ($result) { 
         while ($row = $result->fetch_assoc()) {
             $data[] = [
                 'driver' => $row['driver'],
@@ -562,7 +571,6 @@ function getBehaviorIncidents($limit = 5) {
             ];
         }
     } else {
-        // Optional: log the SQL error for debugging
         error_log("getBehaviorIncidents SQL Error: " . $conn->error);
     }
 
@@ -620,7 +628,7 @@ $sql = "
         t.notes,
         v.plate AS vehicle,
         v.model AS vehicle_model,
-        d.full_name AS driver,       -- FIXED here
+        d.full_name AS driver,
         d.rating AS driver_rating
     FROM trips t
     LEFT JOIN vehicles v ON t.vehicle_id = v.id
@@ -698,40 +706,33 @@ function getTripStatistics($startDate = null, $endDate = null) {
     ];
 }
 
-// 1️⃣ Get all transport expenses
 function getTransportExpenses() {
     global $conn;
 
+    // Added "AS" to make the database columns match what the HTML expects
     $sql = "
         SELECT
-            er.id,
-            er.expense_type,
+            er.id AS expense_id,
+            er.expense_type AS category,
             er.requested_by,
-            er.request_date,
+            er.request_date AS date,
             er.amount,
             er.description,
             er.receipt_path,
             er.status,
             er.driver_id,
             er.vehicle_id,
-
             IFNULL(CONCAT(v.plate, ' - ', v.model), 'N/A') AS vehicle,
             IFNULL(u.full_name, 'N/A') AS driver
-
         FROM expense_requests er
         LEFT JOIN vehicles v ON er.vehicle_id = v.id
         LEFT JOIN drivers d ON er.driver_id = d.id
         LEFT JOIN users u ON d.user_id = u.user_id
-
         ORDER BY er.request_date DESC
     ";
 
     $result = $conn->query($sql);
-
-    if (!$result) {
-        die('SQL ERROR in getTransportExpenses(): ' . $conn->error);
-    }
-
+    if (!$result) die('SQL ERROR in getTransportExpenses(): ' . $conn->error);
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
@@ -775,28 +776,57 @@ function getTransportCostSummary() {
     ];
 }
 
- // 3️⃣ Get fuel cost trends per vehicle
+// 1. UPDATED: Forces 6 months of data so the Line Chart always renders beautifully
 function getFuelConsumptionTrends() {
     global $conn;
 
-    $sql = "
-        SELECT 
-            DATE_FORMAT(date, '%b %Y') AS month,
-            SUM(liters) AS consumption,
-            SUM(cost) AS cost
-        FROM fuel_expenses
-        WHERE status = 'Approved'
-        GROUP BY YEAR(date), MONTH(date)
-        ORDER BY YEAR(date), MONTH(date)
-    ";
-
-    $result = $conn->query($sql);
-
-    if (!$result) {
-        die('SQL ERROR in getFuelConsumptionTrends(): ' . $conn->error);
+    // Create a blank array for the last 6 months
+    $months = [];
+    for ($i = 5; $i >= 0; $i--) {
+        $months[date('b Y', strtotime("-$i months"))] = ['consumption' => 0, 'cost' => 0];
     }
 
-    return $result->fetch_all(MYSQLI_ASSOC);
+    // Fetch from transport_expenses
+    $sql1 = "
+        SELECT DATE_FORMAT(date, '%b %Y') AS month, SUM(amount) AS cost, SUM(amount) / 60 AS consumption
+        FROM transport_expenses
+        WHERE category = 'Fuel' AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        GROUP BY YEAR(date), MONTH(date)
+    ";
+    if ($res1 = $conn->query($sql1)) {
+        while ($row = $res1->fetch_assoc()) {
+            if (isset($months[$row['month']])) {
+                $months[$row['month']]['cost'] += (float)$row['cost'];
+                $months[$row['month']]['consumption'] += (float)$row['consumption'];
+            }
+        }
+    }
+
+    // Fetch from expense_requests (Since you log February fuel here!)
+    $sql2 = "
+        SELECT DATE_FORMAT(request_date, '%b %Y') AS month, SUM(amount) AS cost, SUM(amount) / 60 AS consumption
+        FROM expense_requests
+        WHERE expense_type LIKE '%Fuel%' AND status = 'Approved' AND request_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        GROUP BY YEAR(request_date), MONTH(request_date)
+    ";
+    if ($res2 = $conn->query($sql2)) {
+        while ($row = $res2->fetch_assoc()) {
+            if (isset($months[$row['month']])) {
+                $months[$row['month']]['cost'] += (float)$row['cost'];
+                $months[$row['month']]['consumption'] += (float)$row['consumption'];
+            }
+        }
+    }
+
+    $final = [];
+    foreach ($months as $m => $data) {
+        $final[] = [
+            'month' => $m,
+            'consumption' => round($data['consumption'], 1),
+            'cost' => $data['cost']
+        ];
+    }
+    return $final;
 }
 
 // 2️⃣ Compare vehicle costs
@@ -850,7 +880,7 @@ function getOptimizationInsights() {
 
     // Per-vehicle cost
     $sql = "
-        SELECT v.id, v.plate, v.vehicle,
+        SELECT v.id, v.plate,
                COALESCE(SUM(te.amount),0) AS total_cost
         FROM vehicles v
         LEFT JOIN transport_expenses te ON te.vehicle_id = v.id
@@ -896,8 +926,6 @@ function getReservations() {
 }
 
 
-
-
 // Assign driver
 function assignDriverToReservation($reservationId, $driverId) {
     global $conn;
@@ -913,6 +941,7 @@ function updateReservationStatus($reservationId, $status) {
     $stmt->bind_param("si", $status, $reservationId);
     return $stmt->execute();
 }
+
 function isVehicleAvailable($vehicle_id, $start_datetime, $end_datetime) {
     global $conn;
 
@@ -1150,21 +1179,21 @@ function getAvailableDriversBetween($start, $end) {
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
+// 2. UPDATED: Fetches live tracking data for the Driver Profiles modal
 function getDispatches() {
     global $conn;
-
     $sql = "
         SELECT 
             d.*,
             v.plate,
             v.type,
-            dr.full_name AS driver
+            u.full_name AS driver
         FROM dispatches d
         LEFT JOIN vehicles v ON d.vehicle_id = v.id
         LEFT JOIN drivers dr ON d.driver_id = dr.id
+        LEFT JOIN users u ON dr.user_id = u.user_id
         ORDER BY d.dispatch_date DESC
     ";
-
     $result = $conn->query($sql);
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
@@ -1292,6 +1321,4 @@ function isDriverAvailableBetween($driver_id, $start, $end) {
 
     return $res['cnt'] == 0;
 }
-
-
 ?>

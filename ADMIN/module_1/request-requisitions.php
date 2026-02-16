@@ -1,15 +1,27 @@
 <?php
 include '../includes/functions.php';
 
+function getAllRequisitionsFromAPI() {
+    $url = "https://log1.microfinancial-1.com/api/v1/psm/external/requisitions?key=63cfb7730dcc34299fa38cb1a620f701";
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $result = json_decode($response, true);
+    return $result['data'] ?? $result ?? [];
+}
+
+// Fetch API requisitions once
+$apiRequisitions = getAllRequisitionsFromAPI();
+
 $apiProducts = [];
 
 /* =========================================
    LOAD PRODUCTS FROM LOGISTICS 1 API
 ========================================= */
 if (isset($_POST['load_products'])) {
-
     $url = "https://log1.microfinancial-1.com/api/v1/psm/external/products?key=63cfb7730dcc34299fa38cb1a620f701";
-
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
@@ -28,31 +40,27 @@ if (isset($_POST['load_products'])) {
    REQUEST PRODUCT → INSERT TO REQUISITION
 ========================================= */
 if (isset($_POST['submit_request'])) {
+    $currentYear = date("Y");
+    $last = $conn->query("SELECT req_id FROM purchase_requisitions WHERE req_id LIKE 'PR-$currentYear-%' ORDER BY id DESC LIMIT 1");
+    $lastRow = $last->fetch_assoc();
 
-// Get last PR ID from the database for this year
-$currentYear = date("Y");
-$last = $conn->query("SELECT req_id FROM purchase_requisitions WHERE req_id LIKE 'PR-$currentYear-%' ORDER BY id DESC LIMIT 1");
-$lastRow = $last->fetch_assoc();
+    if ($lastRow) {
+        $lastNumber = (int)substr($lastRow['req_id'], 8);
+        $newNumber = str_pad($lastNumber + 1, 4, "0", STR_PAD_LEFT);
+    } else {
+        $newNumber = "0001";
+    }
 
-if ($lastRow) {
-    // Extract number and increment
-    $lastNumber = (int)substr($lastRow['req_id'], 8); // PR-YYYY-XXXX → XXXX starts at position 8
-    $newNumber = str_pad($lastNumber + 1, 4, "0", STR_PAD_LEFT);
-} else {
-    $newNumber = "0001"; // first requisition of the year
-}
-
-// Final req_id
-$req_id = "PR-$currentYear-$newNumber";
+    $req_id = "PR-$currentYear-$newNumber";
 
     $stmt = $conn->prepare("
         INSERT INTO purchase_requisitions
-        (req_id, requester, department, request_date, product_id, product_name, quantity, unit_price)
-        VALUES (?, ?, ?, CURDATE(), ?, ?, ?, ?)
+        (req_id, requester, department, request_date, product_id, product_name, quantity, unit_price, status)
+        VALUES (?, ?, ?, CURDATE(), ?, ?, ?, ?, 'Pending')
     ");
 
     $requester = $_SESSION['user_name'] ?? 'Admin';
-    $department = $_SESSION['department'] ?? 'Logistics 2';
+    $department = $_SESSION['department'] ?? 'Log2 Dept';
     $quantity = $_POST['quantity'] ?? 1;
 
     $stmt->bind_param(
@@ -80,7 +88,6 @@ $req_id = "PR-$currentYear-$newNumber";
     <title>Purchase Requisitions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Open modal and fill details
         function openRequestModal(prod) {
             document.getElementById('modal').classList.remove('hidden');
             document.getElementById('prod_id').value = prod.prod_id;
@@ -102,7 +109,6 @@ $req_id = "PR-$currentYear-$newNumber";
 <?php include '../includes/header.php'; ?>
 
 <div class="ml-0 md:ml-[280px] p-6 min-h-screen">
-
     <h1 class="text-2xl font-bold mb-6">Purchase Requisitions</h1>
 
     <!-- LOAD PRODUCTS BUTTON -->
@@ -117,7 +123,6 @@ $req_id = "PR-$currentYear-$newNumber";
     <?php if (!empty($apiProducts)): ?>
     <div class="bg-white rounded-lg shadow p-6 mb-8">
         <h2 class="text-lg font-bold mb-4">Available Products from Logistics 1</h2>
-
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b">
@@ -204,7 +209,19 @@ $req_id = "PR-$currentYear-$newNumber";
                     </td>
                     <td class="py-2">
                         <?php
-                        $statusColor = match ($row['status']) {
+                        $liveStatus = $row['status']; // Default to local DB status
+
+                        // Only override for API requisitions (EXTPR-XXXX)
+                        if (strpos($row['req_id'], 'EXTPR') === 0) {
+                            foreach ($apiRequisitions as $apiReq) {
+                                if ($apiReq['req_id'] === $row['req_id']) {
+                                    $liveStatus = $apiReq['req_status'] ?? $liveStatus;
+                                    break;
+                                }
+                            }
+                        }
+
+                        $statusColor = match ($liveStatus) {
                             'Pending' => 'bg-yellow-100 text-yellow-800',
                             'Approved' => 'bg-blue-100 text-blue-800',
                             'Rejected' => 'bg-red-100 text-red-800',
@@ -213,7 +230,7 @@ $req_id = "PR-$currentYear-$newNumber";
                         };
                         ?>
                         <span class="px-3 py-1 rounded-full text-xs font-semibold <?= $statusColor ?>">
-                            <?= $row['status'] ?>
+                            <?= $liveStatus ?>
                         </span>
                     </td>
                 </tr>
@@ -223,6 +240,5 @@ $req_id = "PR-$currentYear-$newNumber";
     </div>
 
 </div>
-
 </body>
 </html>

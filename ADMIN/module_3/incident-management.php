@@ -209,7 +209,6 @@ if ($stmt->execute()) {
                                     <option value="Under Investigation">Under Investigation</option>
                                     <option value="Pending Review">Pending Review</option>
                                     <option value="Resolved">Resolved</option>
-                                    <option value="Closed">Closed</option>
                                 </select>
                                 <select id="filterSeverity" onchange="filterTable()" class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white">
                                     <option value="">All Severity</option>
@@ -282,11 +281,6 @@ if ($stmt->execute()) {
                                         <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-300 transition-all inline-flex items-center gap-1.5" onclick='viewCaseDetails(<?php echo json_encode($incident); ?>)'>
                                             <i class="fas fa-eye"></i> View
                                         </button>
-                                        <?php if ($incident['status'] !== 'Closed'): ?>
-                                            <button class="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-semibold hover:bg-red-600 transition-all inline-flex items-center gap-1.5" onclick="closeCase(<?php echo $incident['id']; ?>, '<?php echo $incident['case_number']; ?>')">
-                                                <i class="fas fa-times-circle"></i> Close
-                                            </button>
-                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>

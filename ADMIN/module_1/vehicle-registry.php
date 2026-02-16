@@ -86,35 +86,7 @@ $vehicles = getVehicles();
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg p-5 shadow-sm border-t-4 border-primary-green">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-gray-600 text-sm font-medium">Maintenance Due</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Under Maintenance')); ?></div>
-                            <div class="text-xs font-medium text-red-600">
-                                <i class="fas fa-arrow-up"></i> 0.8% vs last month
-                            </div>
-                        </div>
-                        <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="bg-white rounded-lg p-5 shadow-sm border-t-4 border-primary-green">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-gray-600 text-sm font-medium">Inactive Vehicles</div>
-                            <div class="text-3xl font-bold text-gray-900 my-2"><?php echo count(array_filter($vehicles, fn($v) => $v['status'] === 'Inactive')); ?></div>
-                            <div class="text-xs font-medium text-green-600">
-                                <i class="fas fa-arrow-down"></i> 1.2% vs last month
-                            </div>
-                        </div>
-                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-ban text-red-600 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Vehicle Registry Table -->
@@ -137,13 +109,6 @@ $vehicles = getVehicles();
                             <option value="Motorcycle">Motorcycle</option>
                             <option value="Car">Car</option>
                         </select>
-                        <select id="statusFilter" onchange="filterTable()" class="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white">
-                            <option value="">All Status</option>
-                            <option value="Available">Available</option>
-                            <option value="On Trip">On Trip</option>
-                            <option value="Reserved">Reserved</option>
-                            <option value="Under Maintenance">Under Maintenance</option>
-                        </select>
                     </div>
                 </div>
 
@@ -156,9 +121,7 @@ $vehicles = getVehicles();
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Model</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Type</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Year</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Last Maintenance</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -169,31 +132,10 @@ $vehicles = getVehicles();
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo $vehicle['type']; ?></td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo $vehicle['year']; ?></td>
                                 <td class="px-5 py-4 text-sm">
-                                <?php
-                                $status = $vehicle['status'];
 
-                                $badgeClass = match ($status) {
-                                    'Available' => 'bg-green-100 text-green-800',
-                                    'On Trip' => 'bg-blue-100 text-blue-800',
-                                    'Reserved' => 'bg-purple-100 text-purple-800',
-                                    'Under Maintenance' => 'bg-yellow-100 text-yellow-800',
-                                    'Inactive' => 'bg-gray-200 text-gray-600',
-                                    default => 'bg-red-100 text-red-800'
-                                };
-                                ?>
-
-                                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold <?= $badgeClass ?>">
-                                    <?= htmlspecialchars($status) ?>
-                                </span>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-gray-700"><?php echo date('M d, Y', strtotime($vehicle['last_maintenance'])); ?></td>
                                 <td class="px-5 py-4 text-sm">
-                                    <div class="flex gap-2">
-                                        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md text-xs font-semibold"
-                                            onclick='editVehicle(<?php echo json_encode($vehicle); ?>)'>
-                                            <i class="fas fa-edit"></i> Edit
-                                        </button>
-                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -245,13 +187,7 @@ $vehicles = getVehicles();
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
-                        <select id="status" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                            <option value="Available">Available</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </div>
+                   
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Last Maintenance Date</label>
                         <input type="date" id="lastMaintenance" name="last_maintenance" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent">
@@ -377,7 +313,6 @@ $vehicles = getVehicles();
             document.getElementById('model').value = vehicle.model;
             document.getElementById('vehicleType').value = vehicle.type;
             document.getElementById('year').value = vehicle.year;
-            document.getElementById('status').value = vehicle.status;
             document.getElementById('lastMaintenance').value = vehicle.last_maintenance;
 
             document.getElementById('vehicleModal').classList.remove('hidden');

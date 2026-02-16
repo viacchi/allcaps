@@ -1,0 +1,38 @@
+[15-Feb-2026 09:05:32 Asia/Manila] Received POST data: Array
+(
+    [user_id] => 22
+    [name] => Emers
+    [license] => LIC-4957
+    [emergency_contact] => 
+    [status] => Active
+    [vehicle_id] => 1
+)
+
+[15-Feb-2026 09:05:32 Asia/Manila] Received FILE data: Array
+(
+    [name] => 
+    [type] => 
+    [tmp_name] => 
+    [error] => 4
+    [size] => 0
+)
+
+[15-Feb-2026 14:42:31 Asia/Manila] Received POST data: Array
+(
+    [user_id] => 22
+    [name] => Emers
+    [license] => LIC-4957
+    [emergency_contact] => 
+    [status] => Active
+    [vehicle_id] => 1
+)
+
+[15-Feb-2026 14:42:31 Asia/Manila] Received FILE data: Array
+(
+    [name] => 
+    [type] => 
+    [tmp_name] => 
+    [error] => 4
+    [size] => 0
+)
+

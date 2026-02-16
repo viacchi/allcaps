@@ -1,8 +1,13 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-define('INACTIVITY_TIMEOUT', 30); // 30s
-define('WARNING_BEFORE', 10);     // show modal 10s before logout
+if (!defined('INACTIVITY_TIMEOUT')) {
+    define('INACTIVITY_TIMEOUT', 180);
+}
+
+if (!defined('WARNING_BEFORE')) {
+    define('WARNING_BEFORE', 60);
+}
 
 $_SESSION['LAST_ACTIVITY'] = $_SESSION['LAST_ACTIVITY'] ?? time();
 

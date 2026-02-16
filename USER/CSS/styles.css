@@ -1,0 +1,29 @@
+/* USERS/css/styles.css */
+:root {
+  --brand-primary: #2D7A5C;
+  --brand-primary-hover: #1F5240;
+  --brand-background-main: #F0FDF4;
+  --brand-border: #D1FAE5;
+}
+
+body {
+  background-color: var(--brand-background-main);
+  font-family: 'Inter', sans-serif; /* Recommended font */
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* Dropdown Animation */
+.dropdown-panel {
+  transform-origin: top right;
+  transition: all 0.2s ease-in-out;
+}
